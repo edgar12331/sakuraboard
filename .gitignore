@@ -11,6 +11,11 @@ node_modules
 dist
 dist-ssr
 *.local
+.vite/
+.env
+
+# Secrets - NIEMALS auf GitHub pushen!
+sakura_bot/config.js
 
 # Editor directories and files
 .vscode/*
