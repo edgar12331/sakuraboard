@@ -1,10 +1,21 @@
 import { createContext, useContext, useEffect, useState, useCallback, useReducer } from 'react';
 import axios from 'axios';
-import { v4 as uuidv4 } from 'uuid';
 import type { AppState, Card, Column, Tag, User } from '../types';
 import { initialTags, initialCards, initialColumns } from '../data/initialData';
 
-const API_URL = 'http://localhost:3001/api';
+const API_URL = import.meta.env.VITE_API_URL || 'https://sakura-bot-fkih.onrender.com/api';
+
+// Token helpers (localStorage)
+const getToken = () => localStorage.getItem('sakura_token');
+const setToken = (t: string) => localStorage.setItem('sakura_token', t);
+const clearToken = () => localStorage.removeItem('sakura_token');
+
+// Always send token as Authorization header
+axios.interceptors.request.use(config => {
+    const token = getToken();
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+    return config;
+});
 axios.defaults.withCredentials = true;
 
 // Wir nutzen weiterhin einen Teil des Reducers für lokale Board-Aktionen
@@ -91,6 +102,7 @@ const initialState: AppState = {
     tags: initialTags,
     cards: initialCards,
     columns: initialColumns,
+    isLoading: true,
 };
 
 interface AppContextValue {
@@ -119,15 +131,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const checkAuth = async () => {
+        // Read token from URL after Discord OAuth redirect
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlToken = urlParams.get('token');
+        if (urlToken) {
+            setToken(urlToken);
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+
+        if (!getToken()) {
+            setIsLoading(false);
+            return;
+        }
+
         try {
-            const res = await axios.get(`${API_URL}/users/me`);
+            const res = await axios.get(`${API_URL}/users/me`, { timeout: 5000 });
             setCurrentUser(res.data);
-            // Fetch all users if admin or editor to show in dropdowns
             if (res.data.status === 'approved') {
                 fetchUsers();
             }
         } catch (err) {
             setCurrentUser(null);
+            clearToken();
         } finally {
             setIsLoading(false);
         }
@@ -154,10 +179,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const logout = async () => {
         try {
             await axios.post(`${API_URL}/auth/logout`);
-            setCurrentUser(null);
-            window.location.href = '/';
         } catch (error) {
             console.error(error);
+        } finally {
+            clearToken();
+            setCurrentUser(null);
+            window.location.href = '/';
         }
     };
 
@@ -183,6 +210,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         ...state,
         currentUser,
         users,
+        isLoading,
     };
 
     return (

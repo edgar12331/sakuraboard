@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { Cherry, LogIn, AlertCircle } from 'lucide-react';
+import { AlertCircle, Cherry, LogIn } from 'lucide-react';
 
 export function LoginPage() {
     const handleDiscordLogin = () => {

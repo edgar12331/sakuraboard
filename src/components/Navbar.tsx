@@ -1,7 +1,5 @@
-import { useState } from 'react';
-import { LayoutDashboard, Settings, ChevronDown } from 'lucide-react';
+import { LayoutDashboard, Settings } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import type { } from '../types';
 
 interface NavbarProps {
     currentView: 'board' | 'admin';
@@ -9,14 +7,8 @@ interface NavbarProps {
 }
 
 export function Navbar({ currentView, onViewChange }: NavbarProps) {
-    const { state, dispatch, isAdmin } = useApp();
-    const [userMenuOpen, setUserMenuOpen] = useState(false);
+    const { state, isAdmin, logout } = useApp();
 
-    const switchUser = (userId: string) => {
-        const u = state.users.find(u => u.id === userId);
-        if (u) dispatch({ type: 'SET_USER', user: u });
-        setUserMenuOpen(false);
-    };
 
     return (
         <nav className="navbar">
@@ -52,7 +44,7 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
 
             <div className="navbar-right">
                 <div className="user-menu-wrapper">
-                    <button className="user-menu-trigger" onClick={() => setUserMenuOpen(o => !o)}>
+                    <button className="user-menu-trigger">
                         <div className="avatar">{state.currentUser?.avatar}</div>
                         <div className="user-menu-info">
                             <span className="user-menu-name">{state.currentUser?.name}</span>
@@ -60,27 +52,10 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
                                 {state.currentUser?.role}
                             </span>
                         </div>
-                        <ChevronDown size={14} className={`chevron ${userMenuOpen ? 'open' : ''}`} />
                     </button>
-
-                    {userMenuOpen && (
-                        <div className="dropdown-menu">
-                            <div className="dropdown-header">Switch Account</div>
-                            {state.users.map(u => (
-                                <button
-                                    key={u.id}
-                                    className={`dropdown-item ${state.currentUser?.id === u.id ? 'active' : ''}`}
-                                    onClick={() => switchUser(u.id)}
-                                >
-                                    <div className="avatar avatar-sm">{u.avatar}</div>
-                                    <div>
-                                        <div className="text-sm">{u.name}</div>
-                                        <span className={`badge-role badge-${u.role}`}>{u.role}</span>
-                                    </div>
-                                </button>
-                            ))}
-                        </div>
-                    )}
+                    <button className="btn btn-secondary" style={{ marginLeft: '8px' }} onClick={logout}>
+                        Abmelden
+                    </button>
                 </div>
             </div>
         </nav>

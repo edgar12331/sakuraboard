@@ -68,12 +68,6 @@ export function AdminPanel() {
         }
     };
 
-    const handleDeleteUser = (userId: string) => {
-        if (confirm('Delete this user? (Only hides from UI right now)')) {
-            // Optional later: delete user API
-        }
-    };
-
     // Use users from state.users since our api fetched them
     const pendingUsers = state.users.filter((u: User) => u.status === 'pending');
     const approvedUsers = state.users.filter((u: User) => u.status === 'approved');
