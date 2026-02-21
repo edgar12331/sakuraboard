@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios';
-import { Tag, Users, LayoutGrid, Trash2, Edit2, Plus, Check, X, Shield, Clock } from 'lucide-react';
+import { Tag, Users, LayoutGrid, Trash2, Edit2, Plus, Check, X, Shield, Clock, AlertCircle, UserX } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import type { Tag as TagType, User, Role } from '../types';
+
+const API_URL = import.meta.env.VITE_API_URL || 'https://sakura-bot-fkih.onrender.com/api';
 
 type AdminTab = 'tags' | 'users' | 'columns';
 
@@ -15,9 +17,31 @@ const TAG_COLORS = [
     '#00cec9', '#e17055',
 ];
 
+// Inline error/success notification
+function InlineAlert({ message, type, onClose }: { message: string; type: 'error' | 'success'; onClose: () => void }) {
+    return (
+        <div style={{
+            display: 'flex', alignItems: 'center', gap: '10px',
+            padding: '10px 14px', borderRadius: '8px', marginBottom: '12px',
+            background: type === 'error' ? 'rgba(255,71,87,0.12)' : 'rgba(123,237,159,0.12)',
+            border: `1px solid ${type === 'error' ? 'rgba(255,71,87,0.4)' : 'rgba(123,237,159,0.4)'}`,
+            color: type === 'error' ? '#ff4757' : '#7bed9f',
+            fontSize: '13px',
+        }}>
+            <AlertCircle size={15} />
+            <span style={{ flex: 1 }}>{message}</span>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: '0' }}>
+                <X size={13} />
+            </button>
+        </div>
+    );
+}
+
 export function AdminPanel() {
     const { state, dispatch, fetchUsers } = useApp();
+    const currentUser = state.currentUser;
     const [activeTab, setActiveTab] = useState<AdminTab>('tags');
+    const [alertMsg, setAlertMsg] = useState<{ text: string; type: 'error' | 'success' } | null>(null);
 
     // Tag state
     const [editingTag, setEditingTag] = useState<TagType | null>(null);
@@ -25,8 +49,10 @@ export function AdminPanel() {
     const [newTagColor, setNewTagColor] = useState(TAG_COLORS[0]);
     const [showNewTag, setShowNewTag] = useState(false);
 
-    // User state
-    // (editingUser removed as it is no longer used)
+    const showAlert = (text: string, type: 'error' | 'success' = 'error') => {
+        setAlertMsg({ text, type });
+        setTimeout(() => setAlertMsg(null), 4000);
+    };
 
     const handleAddTag = () => {
         if (!newTagName.trim()) return;
@@ -43,32 +69,37 @@ export function AdminPanel() {
     };
 
     const handleUserRoleChange = async (user: User, role: Role) => {
+        if (user.id === currentUser?.id) {
+            showAlert('Du kannst deine eigene Rolle nicht ändern.', 'error');
+            return;
+        }
         try {
-            await axios.post(`http://localhost:3001/api/admin/users/${user.id}`, {
+            await axios.post(`${API_URL}/admin/users/${user.id}`, {
                 status: user.status || 'approved',
                 website_role: role
-            }, { withCredentials: true });
+            });
             if (fetchUsers) fetchUsers();
+            showAlert(`Rolle von ${user.name} auf "${role}" gesetzt.`, 'success');
         } catch (err) {
             console.error(err);
-            alert('Could not update user');
+            showAlert('Fehler: Rolle konnte nicht geändert werden.');
         }
     };
 
     const handleApproveUser = async (user: User, role: Role) => {
         try {
-            await axios.post(`http://localhost:3001/api/admin/users/${user.id}`, {
+            await axios.post(`${API_URL}/admin/users/${user.id}`, {
                 status: 'approved',
                 website_role: role
-            }, { withCredentials: true });
+            });
             if (fetchUsers) fetchUsers();
+            showAlert(`${user.name} wurde als "${role}" freigeschaltet.`, 'success');
         } catch (err) {
             console.error(err);
-            alert('Could not approve user');
+            showAlert('Fehler: Benutzer konnte nicht freigeschaltet werden.');
         }
     };
 
-    // Use users from state.users since our api fetched them
     const pendingUsers = state.users.filter((u: User) => u.status === 'pending');
     const approvedUsers = state.users.filter((u: User) => u.status === 'approved');
 
@@ -79,16 +110,20 @@ export function AdminPanel() {
                     <div className="admin-icon"><Shield size={20} /></div>
                     <div>
                         <h1 className="admin-title">Admin Panel</h1>
-                        <p className="text-sm text-muted">Manage tags, users, and columns</p>
+                        <p className="text-sm text-muted">Tags, Benutzer und Spalten verwalten</p>
                     </div>
                 </div>
             </div>
 
+            {alertMsg && (
+                <InlineAlert message={alertMsg.text} type={alertMsg.type} onClose={() => setAlertMsg(null)} />
+            )}
+
             <div className="admin-tabs">
                 {([
                     { key: 'tags', icon: <Tag size={15} />, label: 'Tags' },
-                    { key: 'users', icon: <Users size={15} />, label: 'Users' },
-                    { key: 'columns', icon: <LayoutGrid size={15} />, label: 'Columns' },
+                    { key: 'users', icon: <Users size={15} />, label: `Benutzer${pendingUsers.length > 0 ? ` (${pendingUsers.length} ⏳)` : ''}` },
+                    { key: 'columns', icon: <LayoutGrid size={15} />, label: 'Spalten' },
                 ] as const).map(tab => (
                     <button
                         key={tab.key}
@@ -107,7 +142,7 @@ export function AdminPanel() {
                         <div className="section-header">
                             <h2 className="section-title">Tags</h2>
                             <button className="btn btn-primary btn-sm" onClick={() => setShowNewTag(true)}>
-                                <Plus size={14} /> New Tag
+                                <Plus size={14} /> Neuer Tag
                             </button>
                         </div>
 
@@ -115,7 +150,7 @@ export function AdminPanel() {
                             <div className="tag-editor surface">
                                 <input
                                     className="input"
-                                    placeholder="Tag name…"
+                                    placeholder="Tag-Name…"
                                     value={newTagName}
                                     onChange={e => setNewTagName(e.target.value)}
                                     onKeyDown={e => e.key === 'Enter' && handleAddTag()}
@@ -132,8 +167,8 @@ export function AdminPanel() {
                                     ))}
                                 </div>
                                 <div className="flex gap-2">
-                                    <button className="btn btn-primary btn-sm" onClick={handleAddTag}><Check size={13} /> Add</button>
-                                    <button className="btn btn-secondary btn-sm" onClick={() => setShowNewTag(false)}><X size={13} /> Cancel</button>
+                                    <button className="btn btn-primary btn-sm" onClick={handleAddTag}><Check size={13} /> Hinzufügen</button>
+                                    <button className="btn btn-secondary btn-sm" onClick={() => setShowNewTag(false)}><X size={13} /> Abbrechen</button>
                                 </div>
                             </div>
                         )}
@@ -168,7 +203,7 @@ export function AdminPanel() {
                                                 {tag.name}
                                             </span>
                                             <div className="tag-color-preview" style={{ background: tag.color }} />
-                                            <span className="text-xs text-muted">{state.cards.filter(c => c.tagIds.includes(tag.id)).length} cards</span>
+                                            <span className="text-xs text-muted">{state.cards.filter(c => c.tagIds.includes(tag.id)).length} Karten</span>
                                             <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setEditingTag(tag)}>
                                                 <Edit2 size={13} />
                                             </button>
@@ -187,13 +222,13 @@ export function AdminPanel() {
                 {activeTab === 'users' && (
                     <div className="admin-section">
                         <div className="section-header">
-                            <h2 className="section-title">Users & Roles</h2>
+                            <h2 className="section-title">Benutzer & Rollen</h2>
                         </div>
 
                         {pendingUsers.length > 0 && (
                             <div className="pending-section" style={{ marginBottom: '24px' }}>
                                 <h3 className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--sakura-400)', marginBottom: '8px' }}>
-                                    <Clock size={14} /> Pending Approvals ({pendingUsers.length})
+                                    <Clock size={14} /> Zugriffsanfragen ({pendingUsers.length})
                                 </h3>
                                 <div className="users-list">
                                     {pendingUsers.map(user => (
@@ -205,11 +240,13 @@ export function AdminPanel() {
                                             )}
                                             <div className="user-info">
                                                 <p className="font-semibold">{user.name}</p>
-                                                <p className="text-xs text-muted">Awaiting access</p>
+                                                <p className="text-xs text-muted" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                    <UserX size={11} /> Nicht auf dem Sakura Discord
+                                                </p>
                                             </div>
                                             <div className="flex gap-2">
-                                                <button className="btn btn-sm btn-primary" onClick={() => handleApproveUser(user, 'editor')}>Approve as Editor</button>
-                                                <button className="btn btn-sm btn-secondary" onClick={() => handleApproveUser(user, 'viewer')}>Approve as Viewer</button>
+                                                <button className="btn btn-sm btn-primary" onClick={() => handleApproveUser(user, 'editor')}>Als Editor freischalten</button>
+                                                <button className="btn btn-sm btn-secondary" onClick={() => handleApproveUser(user, 'viewer')}>Als Viewer freischalten</button>
                                             </div>
                                         </div>
                                     ))}
@@ -217,32 +254,38 @@ export function AdminPanel() {
                             </div>
                         )}
 
-                        <h3 className="text-sm font-bold text-muted" style={{ marginBottom: '8px' }}>Approved Users</h3>
+                        <h3 className="text-sm font-bold text-muted" style={{ marginBottom: '8px' }}>Freigeschaltete Benutzer</h3>
                         <div className="users-list">
-                            {approvedUsers.map(user => (
-                                <div key={user.id} className="user-row surface">
-                                    {user.avatar && user.avatar.length > 5 ? (
-                                        <img src={`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`} className="avatar avatar-lg" alt="" />
-                                    ) : (
-                                        <div className="avatar avatar-lg">{user.avatar || user.name.substring(0, 2).toUpperCase()}</div>
-                                    )}
-                                    <div className="user-info">
-                                        <p className="font-semibold">{user.name}</p>
-                                        <p className="text-xs text-muted">ID: {user.id}</p>
+                            {approvedUsers.map(user => {
+                                const isSelf = user.id === currentUser?.id;
+                                return (
+                                    <div key={user.id} className="user-row surface">
+                                        {user.avatar && user.avatar.length > 5 ? (
+                                            <img src={`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`} className="avatar avatar-lg" alt="" />
+                                        ) : (
+                                            <div className="avatar avatar-lg">{user.name.substring(0, 2).toUpperCase()}</div>
+                                        )}
+                                        <div className="user-info">
+                                            <p className="font-semibold">{user.name} {isSelf && <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>(du)</span>}</p>
+                                            <p className="text-xs text-muted">Discord ID: {user.id}</p>
+                                        </div>
+                                        <div className="role-selector">
+                                            {ROLE_OPTIONS.map(role => (
+                                                <button
+                                                    key={role}
+                                                    disabled={isSelf}
+                                                    title={isSelf ? 'Du kannst deine eigene Rolle nicht ändern' : ''}
+                                                    className={`role-btn ${user.role === role ? 'selected' : ''} role-${role}`}
+                                                    style={isSelf ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
+                                                    onClick={() => handleUserRoleChange(user, role)}
+                                                >
+                                                    {role}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
-                                    <div className="role-selector">
-                                        {ROLE_OPTIONS.map(role => (
-                                            <button
-                                                key={role}
-                                                className={`role-btn ${user.role === role ? 'selected' : ''} role-${role}`}
-                                                onClick={() => handleUserRoleChange(user, role)}
-                                            >
-                                                {role}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     </div>
                 )}
@@ -251,7 +294,7 @@ export function AdminPanel() {
                 {activeTab === 'columns' && (
                     <div className="admin-section">
                         <div className="section-header">
-                            <h2 className="section-title">Board Columns</h2>
+                            <h2 className="section-title">Board-Spalten</h2>
                         </div>
 
                         <div className="columns-list">
@@ -260,12 +303,12 @@ export function AdminPanel() {
                                     <div className="col-color-swatch" style={{ background: col.color }} />
                                     <div>
                                         <p className="font-semibold">{col.title}</p>
-                                        <p className="text-xs text-muted">{col.cardIds.length} cards</p>
+                                        <p className="text-xs text-muted">{col.cardIds.length} Karten</p>
                                     </div>
                                     <button
                                         className="btn btn-danger btn-icon btn-sm"
                                         onClick={() => {
-                                            if (confirm(`Delete column "${col.title}" and all its cards?`)) {
+                                            if (confirm(`Spalte "${col.title}" und alle ihre Karten löschen?`)) {
                                                 dispatch({ type: 'DELETE_COLUMN', columnId: col.id });
                                             }
                                         }}

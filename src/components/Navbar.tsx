@@ -1,4 +1,4 @@
-import { LayoutDashboard, Settings } from 'lucide-react';
+import { LayoutDashboard, Settings, LogOut } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 interface NavbarProps {
@@ -8,7 +8,12 @@ interface NavbarProps {
 
 export function Navbar({ currentView, onViewChange }: NavbarProps) {
     const { state, isAdmin, logout } = useApp();
+    const user = state.currentUser;
 
+    // Build Discord avatar URL
+    const avatarUrl = user?.id && user?.avatar
+        ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=64`
+        : null;
 
     return (
         <nav className="navbar">
@@ -44,17 +49,29 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
 
             <div className="navbar-right">
                 <div className="user-menu-wrapper">
-                    <button className="user-menu-trigger">
-                        <div className="avatar">{state.currentUser?.avatar}</div>
+                    <div className="user-menu-trigger">
+                        {avatarUrl ? (
+                            <img
+                                src={avatarUrl}
+                                alt={user?.name}
+                                className="avatar"
+                                style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }}
+                                onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                            />
+                        ) : (
+                            <div className="avatar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 'bold' }}>
+                                {user?.name?.substring(0, 2).toUpperCase() ?? '??'}
+                            </div>
+                        )}
                         <div className="user-menu-info">
-                            <span className="user-menu-name">{state.currentUser?.name}</span>
-                            <span className={`badge-role badge-${state.currentUser?.role}`}>
-                                {state.currentUser?.role}
+                            <span className="user-menu-name">{user?.name}</span>
+                            <span className={`badge-role badge-${user?.role}`}>
+                                {user?.role}
                             </span>
                         </div>
-                    </button>
-                    <button className="btn btn-secondary" style={{ marginLeft: '8px' }} onClick={logout}>
-                        Abmelden
+                    </div>
+                    <button className="btn btn-secondary" style={{ marginLeft: '8px', display: 'flex', alignItems: 'center', gap: '6px' }} onClick={logout}>
+                        <LogOut size={14} /> Abmelden
                     </button>
                 </div>
             </div>

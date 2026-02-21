@@ -32,10 +32,13 @@ export function PendingPage({ logout }: { logout: () => void }) {
                 <div className="login-logo-container" style={{ marginBottom: '16px' }}>
                     <Cherry size={56} className="sakura-spin" color="var(--sakura-400)" />
                 </div>
-                <h1 className="login-title" style={{ fontSize: '24px' }}>Wartet auf Freischaltung</h1>
-                <p className="login-subtitle" style={{ marginBottom: '24px' }}>
-                    Dein Account wurde registriert, aber du hast noch keinen Zugriff.
-                    Bitte warte, bis ein Administrator dich im Board freischaltet.
+                <h1 className="login-title" style={{ fontSize: '24px' }}>Kein Zugriff</h1>
+                <p className="login-subtitle" style={{ marginBottom: '8px' }}>
+                    Du bist <strong>nicht auf dem Sakura Discord</strong> oder wurdest noch nicht freigeschaltet.
+                </p>
+                <p className="login-subtitle" style={{ marginBottom: '24px', fontSize: '13px', opacity: 0.7 }}>
+                    Bitte tritt dem Sakura Discord bei und warte, bis ein Administrator deinen Account freigibt.
+                    Wenn du bereits Mitglied bist, melde dich kurz bei einem Admin.
                 </p>
 
                 <button className="btn btn-secondary mt-4" onClick={logout}>
