@@ -1,5 +1,10 @@
 export type Role = 'admin' | 'editor' | 'viewer';
 
+export interface UserPermissions {
+    canDeleteColumns: boolean;
+    canDeleteCards: boolean;
+}
+
 export interface User {
     id: string;
     name: string;
@@ -7,6 +12,7 @@ export interface User {
     avatar: string | null;
     role: Role;
     status?: 'pending' | 'approved';
+    permissions?: UserPermissions;
 }
 
 export interface Tag {
@@ -57,4 +63,13 @@ export interface AppState {
     cards: Card[];
     columns: Column[];
     isLoading: boolean;
+}
+
+// Discord guild member (from API)
+export interface DiscordMember {
+    id: string;
+    username: string;
+    displayName: string;
+    avatar: string | null;
+    roles: string[];
 }

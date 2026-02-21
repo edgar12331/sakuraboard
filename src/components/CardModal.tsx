@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { X, Upload, Trash2, Calendar, User2, Tag, Lock, Eye, Edit3 } from 'lucide-react';
+import { X, Upload, Trash2, Calendar, User2, Tag, Lock, Eye, Edit3, Check } from 'lucide-react';
 import type { Card } from '../types';
 import { useApp } from '../context/AppContext';
 
@@ -10,10 +10,27 @@ interface CardModalProps {
     onClose: () => void;
 }
 
+function UserAvatar({ userId, users }: { userId: string; users: ReturnType<typeof useApp>['state']['users'] }) {
+    const u = users.find(u => u.id === userId);
+    if (!u) return null;
+    const avatarUrl = u.id && u.avatar && u.avatar.length > 10
+        ? `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png?size=32`
+        : null;
+    return (
+        <div title={u.name} style={{ width: '24px', height: '24px', borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--border)' }}>
+            {avatarUrl
+                ? <img src={avatarUrl} alt={u.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                : <div style={{ width: '100%', height: '100%', background: 'var(--sakura-600)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 'bold', color: '#fff' }}>{u.name.substring(0, 2).toUpperCase()}</div>
+            }
+        </div>
+    );
+}
+
 export function CardModal({ card, columnId, onClose }: CardModalProps) {
-    const { state, dispatch, canEdit, isAdmin } = useApp();
+    const { state, dispatch, canEdit, canDeleteCard, isAdmin } = useApp();
 
     const editAllowed = card ? canEdit(card) : true;
+    const deleteAllowed = card ? (isAdmin() || canDeleteCard(card)) : false;
     const colId = card?.columnId ?? columnId ?? state.columns[0]?.id;
 
     const [title, setTitle] = useState(card?.title ?? '');
@@ -49,7 +66,7 @@ export function CardModal({ card, columnId, onClose }: CardModalProps) {
     };
 
     const handleDelete = () => {
-        if (card && confirm('Delete this card?')) {
+        if (card && confirm('Diese Karte wirklich löschen?')) {
             dispatch({ type: 'DELETE_CARD', cardId: card.id });
             onClose();
         }
@@ -72,6 +89,8 @@ export function CardModal({ card, columnId, onClose }: CardModalProps) {
     const toggleViewer = (id: string) => setAllowedViewerIds(ids => ids.includes(id) ? ids.filter(i => i !== id) : [...ids, id]);
     const toggleEditor = (id: string) => setAllowedEditorIds(ids => ids.includes(id) ? ids.filter(i => i !== id) : [...ids, id]);
 
+    const approvedUsers = state.users.filter(u => u.status === 'approved');
+
     return (
         <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
             <div className="modal">
@@ -80,7 +99,7 @@ export function CardModal({ card, columnId, onClose }: CardModalProps) {
                         <div className="modal-icon">
                             <Edit3 size={16} />
                         </div>
-                        <h2 className="modal-title">{card ? 'Edit Card' : 'New Card'}</h2>
+                        <h2 className="modal-title">{card ? 'Karte bearbeiten' : 'Neue Karte'}</h2>
                     </div>
                     <button className="btn btn-ghost btn-icon" onClick={onClose}>
                         <X size={18} />
@@ -92,7 +111,7 @@ export function CardModal({ card, columnId, onClose }: CardModalProps) {
                     <button className={`modal-tab ${activeTab === 'details' ? 'active' : ''}`} onClick={() => setActiveTab('details')}>Details</button>
                     {(isAdmin() || (card && canEdit(card))) && (
                         <button className={`modal-tab ${activeTab === 'access' ? 'active' : ''}`} onClick={() => setActiveTab('access')}>
-                            <Lock size={13} /> Access
+                            <Lock size={13} /> Zugriff
                         </button>
                     )}
                 </div>
@@ -103,7 +122,7 @@ export function CardModal({ card, columnId, onClose }: CardModalProps) {
                             {/* Image Preview */}
                             {imagePreview && (
                                 <div className="image-preview-container">
-                                    <img src={imagePreview} alt="Card preview" className="image-preview" />
+                                    <img src={imagePreview} alt="Vorschau" className="image-preview" />
                                     {editAllowed && (
                                         <button className="image-remove-btn" onClick={() => { setImageUrl(''); setImagePreview(''); }}>
                                             <X size={14} />
@@ -114,24 +133,24 @@ export function CardModal({ card, columnId, onClose }: CardModalProps) {
 
                             {/* Title */}
                             <div className="form-group">
-                                <label className="form-label">Title *</label>
+                                <label className="form-label">Titel *</label>
                                 <input
                                     className="input"
                                     value={title}
                                     onChange={e => setTitle(e.target.value)}
-                                    placeholder="Card title…"
+                                    placeholder="Kartenname…"
                                     disabled={!editAllowed}
                                 />
                             </div>
 
                             {/* Description */}
                             <div className="form-group">
-                                <label className="form-label">Description</label>
+                                <label className="form-label">Beschreibung</label>
                                 <textarea
                                     className="textarea"
                                     value={description}
                                     onChange={e => setDescription(e.target.value)}
-                                    placeholder="Add a description…"
+                                    placeholder="Beschreibung hinzufügen…"
                                     disabled={!editAllowed}
                                 />
                             </div>
@@ -139,9 +158,9 @@ export function CardModal({ card, columnId, onClose }: CardModalProps) {
                             {/* Image Upload */}
                             {editAllowed && (
                                 <div className="form-group">
-                                    <label className="form-label">Image</label>
+                                    <label className="form-label">Bild</label>
                                     <button className="btn btn-secondary" onClick={() => fileRef.current?.click()}>
-                                        <Upload size={14} /> Upload Image
+                                        <Upload size={14} /> Bild hochladen
                                     </button>
                                     <input ref={fileRef} type="file" accept="image/*" onChange={handleImageUpload} style={{ display: 'none' }} />
                                 </div>
@@ -149,7 +168,7 @@ export function CardModal({ card, columnId, onClose }: CardModalProps) {
 
                             {/* Due Date */}
                             <div className="form-group">
-                                <label className="form-label"><Calendar size={13} /> Due Date</label>
+                                <label className="form-label"><Calendar size={13} /> Fälligkeitsdatum</label>
                                 <input
                                     type="date"
                                     className="input"
@@ -179,21 +198,33 @@ export function CardModal({ card, columnId, onClose }: CardModalProps) {
                                 </div>
                             </div>
 
-                            {/* Assignees */}
+                            {/* Assignees with Discord Avatars */}
                             <div className="form-group">
-                                <label className="form-label"><User2 size={13} /> Assign To</label>
+                                <label className="form-label"><User2 size={13} /> Zuweisen an</label>
                                 <div className="user-selector">
-                                    {state.users.map(u => (
-                                        <button
-                                            key={u.id}
-                                            className={`user-option ${assignedUserIds.includes(u.id) ? 'selected' : ''}`}
-                                            onClick={() => editAllowed && toggleAssignee(u.id)}
-                                        >
-                                            <div className="avatar avatar-sm">{u.avatar}</div>
-                                            <span>{u.name}</span>
-                                            <span className={`badge-role badge-${u.role}`}>{u.role}</span>
-                                        </button>
-                                    ))}
+                                    {approvedUsers.map(u => {
+                                        const avatarUrl = u.id && u.avatar && u.avatar.length > 10
+                                            ? `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png?size=48`
+                                            : null;
+                                        const selected = assignedUserIds.includes(u.id);
+                                        return (
+                                            <button
+                                                key={u.id}
+                                                className={`user-option ${selected ? 'selected' : ''}`}
+                                                onClick={() => editAllowed && toggleAssignee(u.id)}
+                                            >
+                                                <div style={{ width: '28px', height: '28px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0, border: selected ? '2px solid var(--sakura-400)' : '2px solid var(--border)' }}>
+                                                    {avatarUrl
+                                                        ? <img src={avatarUrl} alt={u.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                                                        : <div style={{ width: '100%', height: '100%', background: 'var(--sakura-600)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 'bold', color: '#fff' }}>{u.name.substring(0, 2).toUpperCase()}</div>
+                                                    }
+                                                </div>
+                                                <span style={{ flex: 1, textAlign: 'left' }}>{u.name}</span>
+                                                <span className={`badge-role badge-${u.role}`}>{u.role}</span>
+                                                {selected && <Check size={12} style={{ color: 'var(--sakura-400)' }} />}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         </>
@@ -202,21 +233,24 @@ export function CardModal({ card, columnId, onClose }: CardModalProps) {
                             {/* Access Control */}
                             <div className="form-group">
                                 <label className="form-label">
-                                    <Eye size={13} /> Who can view this card?
+                                    <Eye size={13} /> Wer darf diese Karte sehen?
                                 </label>
-                                <p className="text-xs text-muted mt-1">Empty = everyone can view</p>
+                                <p className="text-xs text-muted mt-1">Leer = alle können sehen</p>
                                 <div className="user-selector mt-2">
-                                    {state.users.filter(u => u.role !== 'admin').map(u => (
-                                        <button
-                                            key={u.id}
-                                            className={`user-option ${allowedViewerIds.includes(u.id) ? 'selected' : ''}`}
-                                            onClick={() => toggleViewer(u.id)}
-                                        >
-                                            <div className="avatar avatar-sm">{u.avatar}</div>
-                                            <span>{u.name}</span>
-                                            <span className={`badge-role badge-${u.role}`}>{u.role}</span>
-                                        </button>
-                                    ))}
+                                    {approvedUsers.filter(u => u.role !== 'admin').map(u => {
+                                        const avatarUrl = u.id && u.avatar && u.avatar.length > 10
+                                            ? `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png?size=32`
+                                            : null;
+                                        return (
+                                            <button key={u.id} className={`user-option ${allowedViewerIds.includes(u.id) ? 'selected' : ''}`} onClick={() => toggleViewer(u.id)}>
+                                                <div style={{ width: '24px', height: '24px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}>
+                                                    {avatarUrl ? <img src={avatarUrl} alt={u.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ width: '100%', height: '100%', background: 'var(--sakura-600)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', color: '#fff' }}>{u.name.substring(0, 2).toUpperCase()}</div>}
+                                                </div>
+                                                <span>{u.name}</span>
+                                                <span className={`badge-role badge-${u.role}`}>{u.role}</span>
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             </div>
 
@@ -224,21 +258,24 @@ export function CardModal({ card, columnId, onClose }: CardModalProps) {
 
                             <div className="form-group">
                                 <label className="form-label">
-                                    <Edit3 size={13} /> Who can edit this card?
+                                    <Edit3 size={13} /> Wer darf diese Karte bearbeiten?
                                 </label>
-                                <p className="text-xs text-muted mt-1">Empty = all editors & admins can edit</p>
+                                <p className="text-xs text-muted mt-1">Leer = alle Editoren & Admins können bearbeiten</p>
                                 <div className="user-selector mt-2">
-                                    {state.users.filter(u => u.role === 'editor').map(u => (
-                                        <button
-                                            key={u.id}
-                                            className={`user-option ${allowedEditorIds.includes(u.id) ? 'selected' : ''}`}
-                                            onClick={() => toggleEditor(u.id)}
-                                        >
-                                            <div className="avatar avatar-sm">{u.avatar}</div>
-                                            <span>{u.name}</span>
-                                            <span className="badge-role badge-editor">editor</span>
-                                        </button>
-                                    ))}
+                                    {approvedUsers.filter(u => u.role === 'editor').map(u => {
+                                        const avatarUrl = u.id && u.avatar && u.avatar.length > 10
+                                            ? `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png?size=32`
+                                            : null;
+                                        return (
+                                            <button key={u.id} className={`user-option ${allowedEditorIds.includes(u.id) ? 'selected' : ''}`} onClick={() => toggleEditor(u.id)}>
+                                                <div style={{ width: '24px', height: '24px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}>
+                                                    {avatarUrl ? <img src={avatarUrl} alt={u.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ width: '100%', height: '100%', background: 'var(--sakura-600)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', color: '#fff' }}>{u.name.substring(0, 2).toUpperCase()}</div>}
+                                                </div>
+                                                <span>{u.name}</span>
+                                                <span className="badge-role badge-editor">editor</span>
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         </>
@@ -246,15 +283,15 @@ export function CardModal({ card, columnId, onClose }: CardModalProps) {
                 </div>
 
                 <div className="modal-footer">
-                    {card && isAdmin() && (
+                    {deleteAllowed && card && (
                         <button className="btn btn-danger" onClick={handleDelete}>
-                            <Trash2 size={14} /> Delete
+                            <Trash2 size={14} /> Löschen
                         </button>
                     )}
-                    <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
+                    <button className="btn btn-secondary" onClick={onClose}>Abbrechen</button>
                     {editAllowed && (
                         <button className="btn btn-primary" onClick={handleSave}>
-                            {card ? 'Save Changes' : 'Create Card'}
+                            {card ? 'Speichern' : 'Erstellen'}
                         </button>
                     )}
                 </div>
@@ -262,3 +299,5 @@ export function CardModal({ card, columnId, onClose }: CardModalProps) {
         </div>
     );
 }
+
+export { UserAvatar };

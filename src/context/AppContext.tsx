@@ -146,6 +146,8 @@ interface AppContextValue {
     dispatch: React.Dispatch<Action>;
     canEdit: (card: Card) => boolean;
     canView: (card: Card) => boolean;
+    canDeleteColumn: () => boolean;
+    canDeleteCard: (card: Card) => boolean;
     isAdmin: () => boolean;
     isLoading: boolean;
     logout: () => void;
@@ -200,7 +202,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const fetchUsers = async () => {
         try {
             const res = await axios.get(`${API_URL}/admin/users`);
-            // Map API data to our User format
             const mapped = res.data.map((u: any) => ({
                 id: u.user_id,
                 name: u.username,
@@ -208,6 +209,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
                 avatar: u.avatar,
                 role: u.website_role,
                 status: u.status,
+                permissions: {
+                    canDeleteColumns: u.can_delete_columns !== 0,
+                    canDeleteCards: u.can_delete_cards !== 0,
+                },
             }));
             setUsers(mapped);
         } catch (err) {
@@ -228,6 +233,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
 
     const isAdmin = useCallback(() => currentUser?.role === 'admin' && currentUser?.status === 'approved', [currentUser]);
+
+    const canDeleteColumn = useCallback(() => {
+        if (!currentUser) return false;
+        if (currentUser.role === 'admin') return true;
+        return currentUser.permissions?.canDeleteColumns !== false;
+    }, [currentUser]);
+
+    const canDeleteCard = useCallback((card: Card) => {
+        if (!currentUser) return false;
+        if (currentUser.role === 'admin') return true;
+        if (!canEdit(card)) return false;
+        return currentUser.permissions?.canDeleteCards !== false;
+    }, [currentUser]);
 
     const canView = useCallback((card: Card) => {
         if (!currentUser || currentUser.status !== 'approved') return false;
@@ -253,7 +271,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
 
     return (
-        <AppContext.Provider value={{ state: fullState, dispatch, canEdit, canView, isAdmin, isLoading, logout, users, fetchUsers }}>
+        <AppContext.Provider value={{ state: fullState, dispatch, canEdit, canView, canDeleteColumn, canDeleteCard, isAdmin, isLoading, logout, users, fetchUsers }}>
             {children}
         </AppContext.Provider>
     );

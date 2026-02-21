@@ -11,14 +11,14 @@ interface BoardColumnProps {
 }
 
 export function BoardColumn({ column, onEditCard, onAddCard }: BoardColumnProps) {
-    const { state, dispatch, isAdmin, canView } = useApp();
+    const { state, dispatch, canView, canDeleteColumn } = useApp();
 
     const cards = column.cardIds
         .map(id => state.cards.find(c => c.id === id))
         .filter((c): c is Card => !!c && canView(c));
 
     const handleDeleteColumn = () => {
-        if (confirm(`Delete column "${column.title}"?`)) {
+        if (confirm(`Spalte "${column.title}" und alle Karten darin löschen?`)) {
             dispatch({ type: 'DELETE_COLUMN', columnId: column.id });
         }
     };
@@ -35,8 +35,8 @@ export function BoardColumn({ column, onEditCard, onAddCard }: BoardColumnProps)
                     <button className="btn btn-ghost btn-icon" onClick={onAddCard} title="Add card">
                         <Plus size={14} />
                     </button>
-                    {isAdmin() && (
-                        <button className="btn btn-ghost btn-icon" onClick={handleDeleteColumn} title="Delete column">
+                    {canDeleteColumn() && (
+                        <button className="btn btn-ghost btn-icon" onClick={handleDeleteColumn} title="Spalte löschen">
                             <Trash2 size={14} />
                         </button>
                     )}
