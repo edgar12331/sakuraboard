@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios';
-import { Tag, Users, LayoutGrid, Trash2, Edit2, Plus, Check, X, Shield, Clock, AlertCircle, UserX } from 'lucide-react';
+import { Tag, Users, LayoutGrid, Trash2, Edit2, Plus, Check, X, Shield, Clock, AlertCircle, UserX, Zap, Swords } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import type { Tag as TagType, User, Role } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://sakura-bot-fkih.onrender.com/api';
 
-type AdminTab = 'tags' | 'users' | 'columns';
+type AdminTab = 'tags' | 'users' | 'columns' | 'moderation';;
 
 const ROLE_OPTIONS: Role[] = ['admin', 'editor', 'viewer'];
 
@@ -42,6 +42,13 @@ export function AdminPanel() {
     const currentUser = state.currentUser;
     const [activeTab, setActiveTab] = useState<AdminTab>('tags');
     const [alertMsg, setAlertMsg] = useState<{ text: string; type: 'error' | 'success' } | null>(null);
+
+    // Moderation state
+    const [modUserId, setModUserId] = useState('');
+    const [modReason, setModReason] = useState('');
+    const [modDuration, setModDuration] = useState(60);
+    const [modLoading, setModLoading] = useState(false);
+    const [funkLoading, setFunkLoading] = useState<string | null>(null);
 
     // Tag state
     const [editingTag, setEditingTag] = useState<TagType | null>(null);
@@ -100,6 +107,35 @@ export function AdminPanel() {
         }
     };
 
+    const handleModerationAction = async (action: 'timeout' | 'kick' | 'ban') => {
+        if (!modUserId.trim()) { showAlert('Bitte Discord User-ID eingeben.'); return; }
+        setModLoading(true);
+        try {
+            const payload: Record<string, unknown> = { userId: modUserId.trim(), reason: modReason || undefined };
+            if (action === 'timeout') payload.durationMinutes = modDuration;
+            const res = await axios.post(`${API_URL}/admin/discord/${action}`, payload);
+            showAlert(res.data.message || 'Aktion erfolgreich!', 'success');
+            setModUserId('');
+            setModReason('');
+        } catch (err: any) {
+            showAlert(err.response?.data?.error || `Fehler beim ${action}`);
+        } finally {
+            setModLoading(false);
+        }
+    };
+
+    const handleFunkUpdate = async (type: 'sakura' | 'neon' | 'blacklist') => {
+        setFunkLoading(type);
+        try {
+            const res = await axios.post(`${API_URL}/admin/funk`, { type });
+            showAlert(`${type === 'sakura' ? '🌸 Sakura' : type === 'neon' ? '🌌 Neon' : '🚫 Blacklist'} Funk aktualisiert! Neue Nummer: ${res.data.newValue}`, 'success');
+        } catch (err: any) {
+            showAlert(err.response?.data?.error || 'Fehler beim Funk-Update');
+        } finally {
+            setFunkLoading(null);
+        }
+    };
+
     const pendingUsers = state.users.filter((u: User) => u.status === 'pending');
     const approvedUsers = state.users.filter((u: User) => u.status === 'approved');
 
@@ -124,6 +160,7 @@ export function AdminPanel() {
                     { key: 'tags', icon: <Tag size={15} />, label: 'Tags' },
                     { key: 'users', icon: <Users size={15} />, label: `Benutzer${pendingUsers.length > 0 ? ` (${pendingUsers.length} ⏳)` : ''}` },
                     { key: 'columns', icon: <LayoutGrid size={15} />, label: 'Spalten' },
+                    { key: 'moderation', icon: <Swords size={15} />, label: 'Moderation' },
                 ] as const).map(tab => (
                     <button
                         key={tab.key}
@@ -317,6 +354,124 @@ export function AdminPanel() {
                                     </button>
                                 </div>
                             ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* ── MODERATION ── */}
+                {activeTab === 'moderation' && (
+                    <div className="admin-section">
+                        {/* Discord Moderation */}
+                        <div className="section-header" style={{ marginBottom: '16px' }}>
+                            <h2 className="section-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <Swords size={16} color="var(--sakura-400)" /> Discord Moderation
+                            </h2>
+                        </div>
+
+                        <div className="surface" style={{ padding: '16px', borderRadius: '10px', marginBottom: '20px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                <div>
+                                    <label className="text-xs text-muted" style={{ display: 'block', marginBottom: '4px' }}>Discord User-ID *</label>
+                                    <input
+                                        className="input"
+                                        placeholder="z.B. 123456789012345678"
+                                        value={modUserId}
+                                        onChange={e => setModUserId(e.target.value)}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs text-muted" style={{ display: 'block', marginBottom: '4px' }}>Grund (optional)</label>
+                                    <input
+                                        className="input"
+                                        placeholder="Grund für die Maßnahme…"
+                                        value={modReason}
+                                        onChange={e => setModReason(e.target.value)}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs text-muted" style={{ display: 'block', marginBottom: '4px' }}>Timeout-Dauer (Minuten)</label>
+                                    <input
+                                        className="input"
+                                        type="number"
+                                        min={1}
+                                        max={40320}
+                                        value={modDuration}
+                                        onChange={e => setModDuration(Number(e.target.value))}
+                                        style={{ width: '140px' }}
+                                    />
+                                </div>
+
+                                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
+                                    <button
+                                        className="btn btn-sm"
+                                        disabled={modLoading}
+                                        style={{ background: 'rgba(255,165,0,0.2)', color: '#ffa500', border: '1px solid rgba(255,165,0,0.4)' }}
+                                        onClick={() => handleModerationAction('timeout')}
+                                    >
+                                        <Clock size={13} /> Timeout ({modDuration} Min)
+                                    </button>
+                                    <button
+                                        className="btn btn-sm"
+                                        disabled={modLoading}
+                                        style={{ background: 'rgba(255,71,87,0.15)', color: '#ff4757', border: '1px solid rgba(255,71,87,0.4)' }}
+                                        onClick={() => handleModerationAction('kick')}
+                                    >
+                                        <UserX size={13} /> Kicken
+                                    </button>
+                                    <button
+                                        className="btn btn-sm"
+                                        disabled={modLoading}
+                                        style={{ background: 'rgba(180,0,0,0.2)', color: '#cc0000', border: '1px solid rgba(180,0,0,0.4)' }}
+                                        onClick={() => {
+                                            if (confirm(`User ${modUserId} wirklich bannen?`)) handleModerationAction('ban');
+                                        }}
+                                    >
+                                        <Shield size={13} /> Bannen
+                                    </button>
+                                </div>
+                                <p className="text-xs text-muted" style={{ marginTop: '4px' }}>
+                                    ⚠️ Diese Aktionen wirken direkt auf deinem Discord-Server!
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Funk Control */}
+                        <div className="section-header" style={{ marginBottom: '12px' }}>
+                            <h2 className="section-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <Zap size={16} color="var(--sakura-400)" /> Funk-System
+                            </h2>
+                        </div>
+
+                        <div className="surface" style={{ padding: '16px', borderRadius: '10px' }}>
+                            <p className="text-xs text-muted" style={{ marginBottom: '14px' }}>
+                                Erzeugt eine neue zufällige Funk-Nummer und postet sie automatisch im Discord-Kanal.
+                            </p>
+                            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                                <button
+                                    className="btn btn-sm"
+                                    disabled={!!funkLoading}
+                                    style={{ background: 'rgba(255,105,180,0.2)', color: '#ff69b4', border: '1px solid rgba(255,105,180,0.4)', minWidth: '140px' }}
+                                    onClick={() => handleFunkUpdate('sakura')}
+                                >
+                                    {funkLoading === 'sakura' ? '⏳ Lädt…' : '🌸 Sakura Funk'}
+                                </button>
+                                <button
+                                    className="btn btn-sm"
+                                    disabled={!!funkLoading}
+                                    style={{ background: 'rgba(0,255,255,0.1)', color: '#00cccc', border: '1px solid rgba(0,255,255,0.3)', minWidth: '140px' }}
+                                    onClick={() => handleFunkUpdate('neon')}
+                                >
+                                    {funkLoading === 'neon' ? '⏳ Lädt…' : '🌌 Neon Lotus Funk'}
+                                </button>
+                                <button
+                                    className="btn btn-sm"
+                                    disabled={!!funkLoading}
+                                    style={{ background: 'rgba(255,0,0,0.1)', color: '#cc3333', border: '1px solid rgba(255,0,0,0.3)', minWidth: '140px' }}
+                                    onClick={() => handleFunkUpdate('blacklist')}
+                                >
+                                    {funkLoading === 'blacklist' ? '⏳ Lädt…' : '🚫 Blacklist Funk'}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}

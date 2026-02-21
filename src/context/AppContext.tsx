@@ -96,12 +96,48 @@ function reducer(state: AppState, action: Action): AppState {
     }
 }
 
+// ─── localStorage board persistence ───
+const BOARD_STORAGE_KEY = 'sakura_board_state';
+
+function loadBoardState() {
+    try {
+        const saved = localStorage.getItem(BOARD_STORAGE_KEY);
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            return {
+                tags: parsed.tags ?? initialTags,
+                cards: parsed.cards ?? initialCards,
+                columns: parsed.columns ?? initialColumns,
+            };
+        }
+    } catch { /* ignore */ }
+    return { tags: initialTags, cards: initialCards, columns: initialColumns };
+}
+
+function saveBoardState(state: AppState) {
+    try {
+        localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify({
+            tags: state.tags,
+            cards: state.cards,
+            columns: state.columns,
+        }));
+    } catch { /* ignore */ }
+}
+
+// Wrap reducer to persist on every action
+function persistingReducer(state: AppState, action: Action): AppState {
+    const next = reducer(state, action);
+    saveBoardState(next);
+    return next;
+}
+
+const saved = loadBoardState();
 const initialState: AppState = {
     currentUser: null,
     users: [],
-    tags: initialTags,
-    cards: initialCards,
-    columns: initialColumns,
+    tags: saved.tags,
+    cards: saved.cards,
+    columns: saved.columns,
     isLoading: true,
 };
 
@@ -120,7 +156,7 @@ interface AppContextValue {
 const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-    const [state, dispatch] = useReducer(reducer, initialState);
+    const [state, dispatch] = useReducer(persistingReducer, initialState);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [users, setUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -145,14 +181,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
 
         try {
-            const res = await axios.get(`${API_URL}/users/me`, { timeout: 5000 });
+            const res = await axios.get(`${API_URL}/users/me`, { timeout: 8000 });
             setCurrentUser(res.data);
             if (res.data.status === 'approved') {
                 fetchUsers();
             }
-        } catch (err) {
+        } catch (err: any) {
+            // Only clear token on real auth errors (401/403), not on network/timeout
+            if (err?.response?.status === 401 || err?.response?.status === 403) {
+                clearToken();
+            }
             setCurrentUser(null);
-            clearToken();
         } finally {
             setIsLoading(false);
         }

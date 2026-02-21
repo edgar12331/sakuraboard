@@ -197,6 +197,118 @@ export function startApiServer(discordClient) {
         }
     });
 
+
+    // ─── DISCORD MODERATION (Admin only) ───
+
+    // Timeout a member
+    app.post('/api/admin/discord/timeout', authenticateToken, async (req, res) => {
+        if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+        const { userId, durationMinutes = 60, reason = 'Timeout via SakuraBoard' } = req.body;
+        if (!userId) return res.status(400).json({ error: 'userId required' });
+        try {
+            const until = new Date(Date.now() + durationMinutes * 60 * 1000).toISOString();
+            await axios.patch(
+                `https://discord.com/api/v10/guilds/${GUILD_ID}/members/${userId}`,
+                { communication_disabled_until: until },
+                { headers: { Authorization: `Bot ${BOT_TOKEN}`, 'Content-Type': 'application/json', 'X-Audit-Log-Reason': reason } }
+            );
+            res.json({ success: true, message: `User ${userId} timed out for ${durationMinutes} minutes.` });
+        } catch (err) {
+            console.error('Timeout error:', err.response?.data || err.message);
+            res.status(500).json({ error: err.response?.data?.message || 'Failed to timeout user' });
+        }
+    });
+
+    // Kick a member
+    app.post('/api/admin/discord/kick', authenticateToken, async (req, res) => {
+        if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+        const { userId, reason = 'Kicked via SakuraBoard' } = req.body;
+        if (!userId) return res.status(400).json({ error: 'userId required' });
+        try {
+            await axios.delete(
+                `https://discord.com/api/v10/guilds/${GUILD_ID}/members/${userId}`,
+                { headers: { Authorization: `Bot ${BOT_TOKEN}`, 'X-Audit-Log-Reason': reason } }
+            );
+            res.json({ success: true, message: `User ${userId} was kicked.` });
+        } catch (err) {
+            console.error('Kick error:', err.response?.data || err.message);
+            res.status(500).json({ error: err.response?.data?.message || 'Failed to kick user' });
+        }
+    });
+
+    // Ban a member
+    app.post('/api/admin/discord/ban', authenticateToken, async (req, res) => {
+        if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+        const { userId, reason = 'Banned via SakuraBoard', deleteMessageDays = 0 } = req.body;
+        if (!userId) return res.status(400).json({ error: 'userId required' });
+        try {
+            await axios.put(
+                `https://discord.com/api/v10/guilds/${GUILD_ID}/bans/${userId}`,
+                { delete_message_days: deleteMessageDays },
+                { headers: { Authorization: `Bot ${BOT_TOKEN}`, 'Content-Type': 'application/json', 'X-Audit-Log-Reason': reason } }
+            );
+            res.json({ success: true, message: `User ${userId} was banned.` });
+        } catch (err) {
+            console.error('Ban error:', err.response?.data || err.message);
+            res.status(500).json({ error: err.response?.data?.message || 'Failed to ban user' });
+        }
+    });
+
+    // Get current funk values from DB
+    app.get('/api/admin/funk', authenticateToken, async (req, res) => {
+        if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+        try {
+            const [rows] = await pool.execute("SELECT * FROM funk_settings WHERE guild_id = ?", [GUILD_ID]);
+            res.json(rows[0] || { sakura: 205473, neon: 6969, blacklist: 18747 });
+        } catch (err) {
+            res.json({ sakura: 205473, neon: 6969, blacklist: 18747 });
+        }
+    });
+
+    // Update a funk value and post to Discord channel
+    app.post('/api/admin/funk', authenticateToken, async (req, res) => {
+        if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+        const { type } = req.body; // 'sakura' | 'neon' | 'blacklist'
+        if (!['sakura', 'neon', 'blacklist'].includes(type)) return res.status(400).json({ error: 'Invalid type' });
+
+        const FUNK_CHANNEL_ID = '1416920966004478063';
+        const ANNOUNCE_CHANNEL_ID = '1096402401898008621';
+        const newValue = Math.floor(Math.random() * 900000) + 100000;
+
+        try {
+            // Update DB
+            await pool.execute(
+                `UPDATE funk_settings SET ${type} = ? WHERE guild_id = ?`,
+                [newValue, GUILD_ID]
+            );
+
+            // Post announcement using bot token via Discord API
+            const label = type === 'sakura' ? '🌸 Sakura Funk' : type === 'neon' ? '🌌 Neon Lotus Funk' : '🚫 Blacklist Funk';
+            const color = type === 'sakura' ? 0xFF69B4 : type === 'neon' ? 0x00FFFF : 0xFF0000;
+            const embed = {
+                title: '🔔 Funk-Update',
+                description: `Der **${label}** wurde über das SakuraBoard aktualisiert!`,
+                color,
+                fields: [
+                    { name: '👤 Ausgeführt von', value: `<@${req.user.id}>`, inline: true },
+                    { name: '🔢 Neue Nummer', value: `\`${newValue}\``, inline: true },
+                ],
+                timestamp: new Date().toISOString(),
+            };
+
+            await axios.post(
+                `https://discord.com/api/v10/channels/${ANNOUNCE_CHANNEL_ID}/messages`,
+                { embeds: [embed] },
+                { headers: { Authorization: `Bot ${BOT_TOKEN}`, 'Content-Type': 'application/json' } }
+            );
+
+            res.json({ success: true, newValue, type });
+        } catch (err) {
+            console.error('Funk error:', err.response?.data || err.message);
+            res.status(500).json({ error: 'Failed to update funk' });
+        }
+    });
+
     // ─── START SERVER ───
     app.listen(PORT, () => {
         console.log(`🚀 SakuraBoard Backend API running on port ${PORT}`);
