@@ -44,7 +44,7 @@ export function initAI() {
         genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
         // Wir nutzen Flash, da es am schnellsten ist und für Chatbots empfohlen wird
         aiModel = genAI.getGenerativeModel({
-            model: 'gemini-1.5-flash',
+            model: 'gemini-2.5-flash',
             systemInstruction: SYSTEM_INSTRUCTION
         });
 
@@ -196,7 +196,7 @@ export async function handleAIIntersection(client, interaction) {
                         },
                         {
                             name: '✨ KI-Modell',
-                            value: 'Google Gemini 1.5',
+                            value: 'Google Gemini 2.5',
                             inline: true
                         }
                     )
@@ -316,7 +316,7 @@ export async function handleAIIntersection(client, interaction) {
                             { name: '❓ Hilfe', value: '`/help` - Zeige alle Befehle', inline: false },
                             {
                                 name: '🔧 Status',
-                                value: '✅ **Online (Google Gemini 1.5)**\n💡 Kann frei und intelligent auf alle Discord- und Serverfragen antworten.',
+                                value: '✅ **Online (Google Gemini 2.5)**\n💡 Kann frei und intelligent auf alle Discord- und Serverfragen antworten.',
                                 inline: false
                             }
                         );
