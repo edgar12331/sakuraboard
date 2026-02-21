@@ -15,7 +15,7 @@ dist-ssr
 .env
 
 # Secrets - NIEMALS auf GitHub pushen!
-sakura_bot/config.js
+# config.js uses process.env - safe to commit
 
 # Editor directories and files
 .vscode/*
