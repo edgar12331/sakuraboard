@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback, useReducer } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, useCallback, useReducer } from 'react';
 import axios from 'axios';
 import type { AppState, Card, Column, Tag, User } from '../types';
 
@@ -165,6 +165,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [users, setUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const isAuthenticatedRef = useRef(false);
 
     // Wrapped dispatch: update local state AND sync to API
     const dispatch = useCallback((action: Action) => {
@@ -189,6 +190,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         checkAuth();
     }, []);
 
+    // Live sync: poll board every 5 seconds
+    useEffect(() => {
+        const interval = setInterval(() => {
+            if (isAuthenticatedRef.current) {
+                fetchBoard();
+            }
+        }, 5000);
+        return () => clearInterval(interval);
+    }, [fetchBoard]);
+
     const checkAuth = async () => {
         // Read token from URL after Discord OAuth redirect
         const urlParams = new URLSearchParams(window.location.search);
@@ -207,6 +218,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             const res = await axios.get(`${API_URL}/users/me`, { timeout: 8000 });
             setCurrentUser(res.data);
             if (res.data.status === 'approved') {
+                isAuthenticatedRef.current = true;
                 fetchUsers();
                 fetchBoard(); // Load board data from DB
             }

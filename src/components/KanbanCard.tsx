@@ -61,8 +61,17 @@ export function KanbanCard({ card, onClick }: KanbanCardProps) {
                 {assignees.length > 0 && (
                     <div className="card-assignees">
                         {assignees.slice(0, 3).map(u => u && (
-                            <div key={u.id} className="avatar avatar-sm" title={u.name}>{u.avatar}</div>
+                            <div key={u.id} className="avatar avatar-sm" title={u.name} style={{ overflow: 'hidden' }}>
+                                {u.id && u.avatar && u.avatar.length > 5 ? (
+                                    <img src={`https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png?size=32`} alt={u.name} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                                ) : (
+                                    u.name.substring(0, 2).toUpperCase()
+                                )}
+                            </div>
                         ))}
+                        {assignees.length > 3 && (
+                            <div className="avatar avatar-sm" style={{ fontSize: '9px' }}>+{assignees.length - 3}</div>
+                        )}
                     </div>
                 )}
             </div>

@@ -553,7 +553,9 @@ body {
   user-select: none;
 }
 
-.checkbox-container input { display: none; }
+.checkbox-container input {
+  display: none;
+}
 
 .checkmark-box {
   width: 18px;
@@ -572,7 +574,30 @@ body {
   border-color: var(--border-hover);
 }
 
-.checkbox-container input:checked + .checkmark-box {
+.checkbox-container input:checked+.checkmark-box {
   background: rgba(255, 107, 157, 0.1);
   border-color: var(--sakura-400);
+}
+
+/* ─── Board Search ─── */
+.board-search {
+  padding: 0 16px 12px;
+}
+
+.search-input-wrapper {
+  position: relative;
+  max-width: 400px;
+}
+
+.search-input-wrapper .search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.search-input {
+  padding-left: 36px !important;
 }

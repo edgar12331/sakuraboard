@@ -8,14 +8,15 @@ interface BoardColumnProps {
     column: Column;
     onEditCard: (card: Card) => void;
     onAddCard: () => void;
+    filterCardIds?: Set<string>;
 }
 
-export function BoardColumn({ column, onEditCard, onAddCard }: BoardColumnProps) {
+export function BoardColumn({ column, onEditCard, onAddCard, filterCardIds }: BoardColumnProps) {
     const { state, dispatch, canView, canDeleteColumn } = useApp();
 
     const cards = column.cardIds
         .map(id => state.cards.find(c => c.id === id))
-        .filter((c): c is Card => !!c && canView(c));
+        .filter((c): c is Card => !!c && canView(c) && (!filterCardIds || filterCardIds.has(c.id)));
 
     const handleDeleteColumn = () => {
         if (confirm(`Spalte "${column.title}" und alle Karten darin löschen?`)) {
