@@ -53,7 +53,10 @@ export function startApiServer(discordClient) {
 
     // 1. Redirect to Discord OAuth
     app.get('/api/auth/discord', (req, res) => {
-        const url = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(OAUTH_REDIRECT_URI)}&response_type=code&scope=identify%20guilds`;
+        const { stayLoggedIn } = req.query;
+        // Use 'state' to carry over the preference through the OAuth flow
+        const state = stayLoggedIn === 'true' ? 'stayIn' : 'noStay';
+        const url = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(OAUTH_REDIRECT_URI)}&response_type=code&scope=identify%20guilds&state=${state}`;
         res.redirect(url);
     });
 
@@ -136,6 +139,18 @@ export function startApiServer(discordClient) {
             }, JWT_SECRET, { expiresIn: '7d' });
 
             // Pass JWT via URL param (cross-domain cookie workaround)
+            // Also set cookie for same-domain cases (if requested)
+            const { state } = req.query;
+            const isStay = state === 'stayIn';
+            const maxAge = isStay ? 30 * 24 * 60 * 60 * 1000 : undefined; // 30 days or session
+
+            res.cookie('token', jwtToken, {
+                httpOnly: true,
+                secure: true,
+                sameSite: 'none',
+                maxAge: maxAge,
+            });
+
             res.redirect(`${FRONTEND_URL}?token=${jwtToken}`);
 
         } catch (error) {
@@ -183,17 +198,66 @@ export function startApiServer(discordClient) {
         }
     });
 
-    // Update a user (approve / change role)
+    // Update a user (approve / change role / permissions)
     app.post('/api/admin/users/:userId', authenticateToken, async (req, res) => {
         if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
-        const { status, website_role } = req.body;
+        const { status, website_role, can_delete_columns, can_delete_cards } = req.body;
         const { userId } = req.params;
 
         try {
-            await pool.execute('UPDATE website_users SET status = ?, website_role = ? WHERE user_id = ?', [status, website_role, userId]);
+            // Try to add columns for permissions if they don't exist (no-op if already there)
+            try {
+                await pool.execute("ALTER TABLE website_users ADD COLUMN can_delete_columns TINYINT(1) DEFAULT 1");
+            } catch (_) { /* column already exists */ }
+            try {
+                await pool.execute("ALTER TABLE website_users ADD COLUMN can_delete_cards TINYINT(1) DEFAULT 1");
+            } catch (_) { /* column already exists */ }
+
+            const cdCols = can_delete_columns !== undefined ? (can_delete_columns ? 1 : 0) : 1;
+            const cdCards = can_delete_cards !== undefined ? (can_delete_cards ? 1 : 0) : 1;
+            await pool.execute(
+                'UPDATE website_users SET status = ?, website_role = ?, can_delete_columns = ?, can_delete_cards = ? WHERE user_id = ?',
+                [status, website_role, cdCols, cdCards, userId]
+            );
             res.json({ success: true });
         } catch (err) {
+            console.error('Update user error:', err);
             res.status(500).json({ error: 'DB Error' });
+        }
+    });
+
+    // Get all Discord guild members (for moderation member picker)
+    app.get('/api/admin/discord/members', authenticateToken, async (req, res) => {
+        if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+        try {
+            let allMembers = [];
+            let after = '0';
+            let page;
+            do {
+                const response = await axios.get(
+                    `https://discord.com/api/v10/guilds/${GUILD_ID}/members?limit=1000&after=${after}`,
+                    { headers: { Authorization: `Bot ${BOT_TOKEN}` } }
+                );
+                page = response.data;
+                if (page.length === 0) break;
+                allMembers = allMembers.concat(page);
+                after = page[page.length - 1].user.id;
+            } while (page.length === 1000);
+
+            const members = allMembers.map(m => ({
+                id: m.user.id,
+                username: m.user.username,
+                displayName: m.nick || m.user.global_name || m.user.username,
+                avatar: m.user.avatar
+                    ? `https://cdn.discordapp.com/avatars/${m.user.id}/${m.user.avatar}.png?size=64`
+                    : null,
+                roles: m.roles || [],
+            }));
+
+            res.json(members);
+        } catch (err) {
+            console.error('Members fetch error:', err.response?.data || err.message);
+            res.status(500).json({ error: 'Failed to fetch guild members' });
         }
     });
 
@@ -306,6 +370,165 @@ export function startApiServer(discordClient) {
         } catch (err) {
             console.error('Funk error:', err.response?.data || err.message);
             res.status(500).json({ error: 'Failed to update funk' });
+        }
+    });
+
+    // ─── BOARD DATA CRUD ───
+
+    // Get entire board (tags, columns, cards)
+    app.get('/api/board', authenticateToken, async (req, res) => {
+        try {
+            const [tags] = await pool.execute('SELECT * FROM board_tags ORDER BY sort_order, created_at');
+            const [columns] = await pool.execute('SELECT * FROM board_columns ORDER BY sort_order, created_at');
+            const [cards] = await pool.execute('SELECT * FROM board_cards ORDER BY sort_order, created_at');
+
+            // Parse JSON fields in cards
+            const parsedCards = cards.map(c => ({
+                id: c.id,
+                columnId: c.column_id,
+                title: c.title,
+                description: c.description || '',
+                tagIds: JSON.parse(c.tag_ids || '[]'),
+                imageUrl: c.image_url || undefined,
+                assignedUserIds: JSON.parse(c.assigned_user_ids || '[]'),
+                dueDate: c.due_date || undefined,
+                allowedViewerIds: JSON.parse(c.allowed_viewer_ids || '[]'),
+                allowedEditorIds: JSON.parse(c.allowed_editor_ids || '[]'),
+                comments: JSON.parse(c.comments || '[]'),
+                createdAt: c.created_at,
+            }));
+
+            // Build column cardIds from actual cards
+            const parsedColumns = columns.map(col => ({
+                id: col.id,
+                title: col.title,
+                color: col.color,
+                cardIds: parsedCards.filter(c => c.columnId === col.id).map(c => c.id),
+            }));
+
+            res.json({
+                tags: tags.map(t => ({ id: t.id, name: t.name, color: t.color })),
+                columns: parsedColumns,
+                cards: parsedCards,
+            });
+        } catch (err) {
+            console.error('Board fetch error:', err);
+            res.status(500).json({ error: 'Failed to load board' });
+        }
+    });
+
+    // ── Tags CRUD ──
+    app.post('/api/board/tags', authenticateToken, async (req, res) => {
+        const { id, name, color } = req.body;
+        try {
+            await pool.execute('INSERT INTO board_tags (id, name, color) VALUES (?, ?, ?)', [id, name, color]);
+            res.json({ success: true });
+        } catch (err) {
+            res.status(500).json({ error: 'Failed to create tag' });
+        }
+    });
+
+    app.put('/api/board/tags/:id', authenticateToken, async (req, res) => {
+        const { name, color } = req.body;
+        try {
+            await pool.execute('UPDATE board_tags SET name = ?, color = ? WHERE id = ?', [name, color, req.params.id]);
+            res.json({ success: true });
+        } catch (err) {
+            res.status(500).json({ error: 'Failed to update tag' });
+        }
+    });
+
+    app.delete('/api/board/tags/:id', authenticateToken, async (req, res) => {
+        try {
+            await pool.execute('DELETE FROM board_tags WHERE id = ?', [req.params.id]);
+            res.json({ success: true });
+        } catch (err) {
+            res.status(500).json({ error: 'Failed to delete tag' });
+        }
+    });
+
+    // ── Columns CRUD ──
+    app.post('/api/board/columns', authenticateToken, async (req, res) => {
+        const { id, title, color } = req.body;
+        try {
+            const [existing] = await pool.execute('SELECT MAX(sort_order) as max_order FROM board_columns');
+            const sortOrder = (existing[0]?.max_order || 0) + 1;
+            await pool.execute('INSERT INTO board_columns (id, title, color, sort_order) VALUES (?, ?, ?, ?)', [id, title, color || '#ff6b9d', sortOrder]);
+            res.json({ success: true });
+        } catch (err) {
+            res.status(500).json({ error: 'Failed to create column' });
+        }
+    });
+
+    app.put('/api/board/columns/:id', authenticateToken, async (req, res) => {
+        const { title, color } = req.body;
+        try {
+            await pool.execute('UPDATE board_columns SET title = ?, color = ? WHERE id = ?', [title, color, req.params.id]);
+            res.json({ success: true });
+        } catch (err) {
+            res.status(500).json({ error: 'Failed to update column' });
+        }
+    });
+
+    app.delete('/api/board/columns/:id', authenticateToken, async (req, res) => {
+        try {
+            await pool.execute('DELETE FROM board_cards WHERE column_id = ?', [req.params.id]);
+            await pool.execute('DELETE FROM board_columns WHERE id = ?', [req.params.id]);
+            res.json({ success: true });
+        } catch (err) {
+            res.status(500).json({ error: 'Failed to delete column' });
+        }
+    });
+
+    // ── Cards CRUD ──
+    app.post('/api/board/cards', authenticateToken, async (req, res) => {
+        const { id, columnId, title, description, tagIds, imageUrl, assignedUserIds, dueDate, allowedViewerIds, allowedEditorIds, comments } = req.body;
+        try {
+            const [existing] = await pool.execute('SELECT MAX(sort_order) as max_order FROM board_cards WHERE column_id = ?', [columnId]);
+            const sortOrder = (existing[0]?.max_order || 0) + 1;
+            await pool.execute(
+                `INSERT INTO board_cards (id, column_id, title, description, tag_ids, image_url, assigned_user_ids, due_date, allowed_viewer_ids, allowed_editor_ids, comments, sort_order)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [id, columnId, title, description || '', JSON.stringify(tagIds || []), imageUrl || null, JSON.stringify(assignedUserIds || []), dueDate || null, JSON.stringify(allowedViewerIds || []), JSON.stringify(allowedEditorIds || []), JSON.stringify(comments || []), sortOrder]
+            );
+            res.json({ success: true });
+        } catch (err) {
+            console.error('Card create error:', err);
+            res.status(500).json({ error: 'Failed to create card' });
+        }
+    });
+
+    app.put('/api/board/cards/:id', authenticateToken, async (req, res) => {
+        const { title, description, tagIds, imageUrl, assignedUserIds, dueDate, allowedViewerIds, allowedEditorIds, comments, columnId } = req.body;
+        try {
+            await pool.execute(
+                `UPDATE board_cards SET title = ?, description = ?, tag_ids = ?, image_url = ?, assigned_user_ids = ?, due_date = ?, allowed_viewer_ids = ?, allowed_editor_ids = ?, comments = ?, column_id = ? WHERE id = ?`,
+                [title, description || '', JSON.stringify(tagIds || []), imageUrl || null, JSON.stringify(assignedUserIds || []), dueDate || null, JSON.stringify(allowedViewerIds || []), JSON.stringify(allowedEditorIds || []), JSON.stringify(comments || []), columnId, req.params.id]
+            );
+            res.json({ success: true });
+        } catch (err) {
+            console.error('Card update error:', err);
+            res.status(500).json({ error: 'Failed to update card' });
+        }
+    });
+
+    app.delete('/api/board/cards/:id', authenticateToken, async (req, res) => {
+        try {
+            await pool.execute('DELETE FROM board_cards WHERE id = ?', [req.params.id]);
+            res.json({ success: true });
+        } catch (err) {
+            res.status(500).json({ error: 'Failed to delete card' });
+        }
+    });
+
+    // Move card to different column
+    app.put('/api/board/cards/:id/move', authenticateToken, async (req, res) => {
+        const { columnId, sortOrder } = req.body;
+        try {
+            await pool.execute('UPDATE board_cards SET column_id = ?, sort_order = ? WHERE id = ?', [columnId, sortOrder || 0, req.params.id]);
+            res.json({ success: true });
+        } catch (err) {
+            res.status(500).json({ error: 'Failed to move card' });
         }
     });
 

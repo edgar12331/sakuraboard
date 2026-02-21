@@ -105,8 +105,50 @@ export async function initDatabase() {
         website_role ENUM('admin', 'editor', 'viewer') DEFAULT 'viewer',
         status ENUM('pending', 'approved') DEFAULT 'pending',
         discord_roles TEXT,
+        can_delete_columns TINYINT(1) DEFAULT 1,
+        can_delete_cards TINYINT(1) DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+    `);
+
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS board_tags (
+        id VARCHAR(64) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        color VARCHAR(32) NOT NULL,
+        sort_order INT DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+    `);
+
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS board_columns (
+        id VARCHAR(64) PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        color VARCHAR(32) NOT NULL DEFAULT '#ff6b9d',
+        sort_order INT DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+    `);
+
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS board_cards (
+        id VARCHAR(64) PRIMARY KEY,
+        column_id VARCHAR(64) NOT NULL,
+        title VARCHAR(500) NOT NULL,
+        description TEXT,
+        tag_ids TEXT,
+        image_url TEXT,
+        assigned_user_ids TEXT,
+        due_date DATETIME NULL,
+        allowed_viewer_ids TEXT,
+        allowed_editor_ids TEXT,
+        comments TEXT,
+        sort_order INT DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_column_id (column_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
     `);
 

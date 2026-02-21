@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Tag, Users, LayoutGrid, Trash2, Edit2, Plus, Check, X, Shield, Clock, AlertCircle, UserX, Zap, Swords } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import type { Tag as TagType, User, Role } from '../types';
@@ -21,18 +20,20 @@ const TAG_COLORS = [
 // Inline error/success notification
 function InlineAlert({ message, type, onClose }: { message: string; type: 'error' | 'success'; onClose: () => void }) {
     return (
-        <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className={`inline-alert alert-${type}`}
-        >
+        <div style={{
+            display: 'flex', alignItems: 'center', gap: '10px',
+            padding: '10px 14px', borderRadius: '8px', marginBottom: '12px',
+            background: type === 'error' ? 'rgba(255,71,87,0.12)' : 'rgba(123,237,159,0.12)',
+            border: `1px solid ${type === 'error' ? 'rgba(255,71,87,0.4)' : 'rgba(123,237,159,0.4)'}`,
+            color: type === 'error' ? '#ff4757' : '#7bed9f',
+            fontSize: '13px',
+        }}>
             <AlertCircle size={15} />
             <span style={{ flex: 1 }}>{message}</span>
-            <button onClick={onClose} className="alert-close">
+            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: '0' }}>
                 <X size={13} />
             </button>
-        </motion.div>
+        </div>
     );
 }
 
@@ -41,6 +42,12 @@ export function AdminPanel() {
     const currentUser = state.currentUser;
     const [activeTab, setActiveTab] = useState<AdminTab>('tags');
     const [alertMsg, setAlertMsg] = useState<{ text: string; type: 'error' | 'success' } | null>(null);
+
+    // Tag state
+    const [editingTag, setEditingTag] = useState<TagType | null>(null);
+    const [newTagName, setNewTagName] = useState('');
+    const [newTagColor, setNewTagColor] = useState(TAG_COLORS[0]);
+    const [showNewTag, setShowNewTag] = useState(false);
 
     // Moderation state
     const [modUserId, setModUserId] = useState('');
@@ -53,28 +60,22 @@ export function AdminPanel() {
     const [membersLoading, setMembersLoading] = useState(false);
     const [selectedMember, setSelectedMember] = useState<{ id: string; displayName: string } | null>(null);
 
+    const showAlert = (text: string, type: 'error' | 'success' = 'error') => {
+        setAlertMsg({ text, type });
+        setTimeout(() => setAlertMsg(null), 4000);
+    };
+
     const loadGuildMembers = async () => {
         if (guildMembers.length > 0) return;
         setMembersLoading(true);
         try {
-            const res = await axios.get(`${API_URL}/admin/discord/members`);
+            const res = await axios.get(`${API_URL}/admin/discord/members`, { withCredentials: true });
             setGuildMembers(res.data);
-        } catch (err) {
+        } catch {
             showAlert('Konnte Discord-Mitglieder nicht laden.');
         } finally {
             setMembersLoading(false);
         }
-    };
-
-    // Tag state
-    const [editingTag, setEditingTag] = useState<TagType | null>(null);
-    const [newTagName, setNewTagName] = useState('');
-    const [newTagColor, setNewTagColor] = useState(TAG_COLORS[0]);
-    const [showNewTag, setShowNewTag] = useState(false);
-
-    const showAlert = (text: string, type: 'error' | 'success' = 'error') => {
-        setAlertMsg({ text, type });
-        setTimeout(() => setAlertMsg(null), 4000);
     };
 
     const handleAddTag = () => {
@@ -144,8 +145,7 @@ export function AdminPanel() {
     const handleFunkUpdate = async (type: 'sakura' | 'neon' | 'blacklist') => {
         setFunkLoading(type);
         try {
-            const res = await axios.post(`${API_URL}/admin/funk`, { type });
-            void res; // Mark as used
+            await axios.post(`${API_URL}/admin/funk`, { type });
             showAlert(`${type === 'sakura' ? '🌸 Sakura' : type === 'neon' ? '🌌 Neon' : '🚫 Blacklist'} Funk aktualisiert!`, 'success');
         } catch (err: any) {
             showAlert(err.response?.data?.error || 'Fehler beim Funk-Update');
@@ -157,393 +157,366 @@ export function AdminPanel() {
     const pendingUsers = state.users.filter((u: User) => u.status === 'pending');
     const approvedUsers = state.users.filter((u: User) => u.status === 'approved');
 
-    const tabs = [
-        { id: 'tags', label: 'Tags', icon: <Tag size={16} /> },
-        { id: 'users', label: 'Benutzer', icon: <Users size={16} />, badge: pendingUsers.length },
-        { id: 'columns', label: 'Spalten', icon: <LayoutGrid size={16} /> },
-        { id: 'moderation', label: 'Moderation', icon: <Swords size={16} /> },
-    ] as const;
-
     return (
-        <div className="admin-screen">
-            <div className="admin-container surface">
-                <aside className="admin-sidebar">
-                    <div className="sidebar-header">
-                        <Shield className="text-sakura" size={20} />
-                        <h1 className="sidebar-title">Admin Panel</h1>
+        <div className="admin-panel">
+            <div className="admin-header">
+                <div className="flex items-center gap-3">
+                    <div className="admin-icon"><Shield size={20} /></div>
+                    <div>
+                        <h1 className="admin-title">Admin Panel</h1>
+                        <p className="text-sm text-muted">Tags, Benutzer, Spalten & Moderation</p>
                     </div>
-                    <nav className="sidebar-nav">
-                        {(tabs as any).map((tab: any) => (
-                            <button
-                                key={tab.id}
-                                className={`nav-item ${activeTab === tab.id ? 'active' : ''}`}
-                                onClick={() => setActiveTab(tab.id as AdminTab)}
-                            >
-                                {tab.icon}
-                                <span>{tab.label}</span>
-                                {tab.badge ? <span className="tab-badge-count">{tab.badge}</span> : null}
+                </div>
+            </div>
+
+            {alertMsg && (
+                <InlineAlert message={alertMsg.text} type={alertMsg.type} onClose={() => setAlertMsg(null)} />
+            )}
+
+            <div className="admin-tabs">
+                {([
+                    { key: 'tags', icon: <Tag size={15} />, label: 'Tags' },
+                    { key: 'users', icon: <Users size={15} />, label: `Benutzer${pendingUsers.length > 0 ? ` (${pendingUsers.length} ⏳)` : ''}` },
+                    { key: 'columns', icon: <LayoutGrid size={15} />, label: 'Spalten' },
+                    { key: 'moderation', icon: <Swords size={15} />, label: 'Moderation' },
+                ] as const).map(tab => (
+                    <button
+                        key={tab.key}
+                        className={`admin-tab ${activeTab === tab.key ? 'active' : ''}`}
+                        onClick={() => setActiveTab(tab.key as AdminTab)}
+                    >
+                        {tab.icon} {tab.label}
+                    </button>
+                ))}
+            </div>
+
+            <div className="admin-content">
+                {/* ── TAGS ── */}
+                {activeTab === 'tags' && (
+                    <div className="admin-section">
+                        <div className="section-header">
+                            <h2 className="section-title">Tags</h2>
+                            <button className="btn btn-primary btn-sm" onClick={() => setShowNewTag(true)}>
+                                <Plus size={14} /> Neuer Tag
                             </button>
-                        ))}
-                    </nav>
-                </aside>
+                        </div>
 
-                <main className="admin-main">
-                    <AnimatePresence mode="wait">
-                        <motion.div
-                            key={activeTab}
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -20 }}
-                            transition={{ duration: 0.2 }}
-                            className="admin-tab-content"
-                        >
-                            {alertMsg && <InlineAlert message={alertMsg.text} type={alertMsg.type} onClose={() => setAlertMsg(null)} />}
+                        {showNewTag && (
+                            <div className="tag-editor surface">
+                                <input
+                                    className="input"
+                                    placeholder="Tag-Name…"
+                                    value={newTagName}
+                                    onChange={e => setNewTagName(e.target.value)}
+                                    onKeyDown={e => e.key === 'Enter' && handleAddTag()}
+                                    autoFocus
+                                />
+                                <div className="color-picker">
+                                    {TAG_COLORS.map(c => (
+                                        <button
+                                            key={c}
+                                            className={`color-dot ${newTagColor === c ? 'selected' : ''}`}
+                                            style={{ background: c }}
+                                            onClick={() => setNewTagColor(c)}
+                                        />
+                                    ))}
+                                </div>
+                                <div className="flex gap-2">
+                                    <button className="btn btn-primary btn-sm" onClick={handleAddTag}><Check size={13} /> Hinzufügen</button>
+                                    <button className="btn btn-secondary btn-sm" onClick={() => setShowNewTag(false)}><X size={13} /> Abbrechen</button>
+                                </div>
+                            </div>
+                        )}
 
-                            {/* ── TAGS ── */}
-                            {activeTab === 'tags' && (
-                                <div className="admin-section">
-                                    <div className="section-header">
-                                        <h2 className="section-title">Tags verwalten</h2>
-                                        <button className="btn btn-primary btn-sm" onClick={() => setShowNewTag(true)}>
-                                            <Plus size={14} /> Neuer Tag
-                                        </button>
-                                    </div>
-
-                                    {showNewTag && (
-                                        <motion.div
-                                            initial={{ opacity: 0, scale: 0.95 }}
-                                            animate={{ opacity: 1, scale: 1 }}
-                                            className="tag-editor surface elevated"
-                                        >
+                        <div className="tags-list">
+                            {state.tags.map(tag => (
+                                <div key={tag.id} className="tag-row surface">
+                                    {editingTag?.id === tag.id ? (
+                                        <>
+                                            <div className="tag-color-preview" style={{ background: editingTag.color }} />
                                             <input
                                                 className="input"
-                                                placeholder="Tag-Name…"
-                                                value={newTagName}
-                                                onChange={e => setNewTagName(e.target.value)}
-                                                autoFocus
+                                                value={editingTag.name}
+                                                onChange={e => setEditingTag({ ...editingTag, name: e.target.value })}
                                             />
                                             <div className="color-picker">
                                                 {TAG_COLORS.map(c => (
                                                     <button
                                                         key={c}
-                                                        className={`color-dot ${newTagColor === c ? 'selected' : ''}`}
+                                                        className={`color-dot ${editingTag.color === c ? 'selected' : ''}`}
                                                         style={{ background: c }}
-                                                        onClick={() => setNewTagColor(c)}
+                                                        onClick={() => setEditingTag({ ...editingTag, color: c })}
                                                     />
                                                 ))}
                                             </div>
+                                            <button className="btn btn-primary btn-sm" onClick={handleUpdateTag}><Check size={13} /></button>
+                                            <button className="btn btn-secondary btn-sm" onClick={() => setEditingTag(null)}><X size={13} /></button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="tag-badge" style={{ background: tag.color + '22', color: tag.color, border: `1px solid ${tag.color}55` }}>
+                                                {tag.name}
+                                            </span>
+                                            <div className="tag-color-preview" style={{ background: tag.color }} />
+                                            <span className="text-xs text-muted">{state.cards.filter(c => c.tagIds.includes(tag.id)).length} Karten</span>
+                                            <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setEditingTag(tag)}>
+                                                <Edit2 size={13} />
+                                            </button>
+                                            <button className="btn btn-danger btn-icon btn-sm" onClick={() => dispatch({ type: 'DELETE_TAG', tagId: tag.id })}>
+                                                <Trash2 size={13} />
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* ── USERS ── */}
+                {activeTab === 'users' && (
+                    <div className="admin-section">
+                        <div className="section-header">
+                            <h2 className="section-title">Benutzer & Rollen</h2>
+                        </div>
+
+                        {pendingUsers.length > 0 && (
+                            <div className="pending-section" style={{ marginBottom: '24px' }}>
+                                <h3 className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--sakura-400)', marginBottom: '8px' }}>
+                                    <Clock size={14} /> Zugriffsanfragen ({pendingUsers.length})
+                                </h3>
+                                <div className="users-list">
+                                    {pendingUsers.map(user => (
+                                        <div key={user.id} className="user-row surface" style={{ borderColor: 'var(--sakura-400)' }}>
+                                            {user.avatar ? (
+                                                <img src={`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`} className="avatar avatar-lg" alt="" />
+                                            ) : (
+                                                <div className="avatar avatar-lg">{user.name.substring(0, 2).toUpperCase()}</div>
+                                            )}
+                                            <div className="user-info">
+                                                <p className="font-semibold">{user.name}</p>
+                                                <p className="text-xs text-muted" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                    <UserX size={11} /> Nicht auf dem Sakura Discord
+                                                </p>
+                                            </div>
                                             <div className="flex gap-2">
-                                                <button className="btn btn-primary btn-sm" onClick={handleAddTag}><Check size={13} /> Hinzufügen</button>
-                                                <button className="btn btn-secondary btn-sm" onClick={() => setShowNewTag(false)}><X size={13} /> Abbrechen</button>
-                                            </div>
-                                        </motion.div>
-                                    )}
-
-                                    <div className="tags-list">
-                                        {state.tags.map(tag => (
-                                            <div key={tag.id} className="tag-row row-item surface">
-                                                {editingTag?.id === tag.id ? (
-                                                    <div className="flex gap-3 items-center w-full">
-                                                        <input
-                                                            className="input input-sm"
-                                                            value={editingTag.name}
-                                                            onChange={e => setEditingTag({ ...editingTag, name: e.target.value })}
-                                                        />
-                                                        <div className="color-picker-mini">
-                                                            {TAG_COLORS.map(c => (
-                                                                <button
-                                                                    key={c}
-                                                                    className={`color-dot-sm ${editingTag.color === c ? 'selected' : ''}`}
-                                                                    style={{ background: c }}
-                                                                    onClick={() => setEditingTag({ ...editingTag, color: c })}
-                                                                />
-                                                            ))}
-                                                        </div>
-                                                        <button className="btn btn-primary btn-sm" onClick={handleUpdateTag}><Check size={13} /></button>
-                                                        <button className="btn btn-secondary btn-sm" onClick={() => setEditingTag(null)}><X size={13} /></button>
-                                                    </div>
-                                                ) : (
-                                                    <>
-                                                        <span className="tag-pill" style={{ background: tag.color + '22', color: tag.color, border: `1px solid ${tag.color}55` }}>
-                                                            {tag.name}
-                                                        </span>
-                                                        <span className="text-xs text-muted flex-1">{state.cards.filter(c => c.tagIds.includes(tag.id)).length} Karten</span>
-                                                        <div className="flex gap-1">
-                                                            <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setEditingTag(tag)}>
-                                                                <Edit2 size={13} />
-                                                            </button>
-                                                            <button className="btn btn-ghost btn-icon btn-sm text-danger" onClick={() => dispatch({ type: 'DELETE_TAG', tagId: tag.id })}>
-                                                                <Trash2 size={13} />
-                                                            </button>
-                                                        </div>
-                                                    </>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* ── USERS ── */}
-                            {activeTab === 'users' && (
-                                <div className="admin-section">
-                                    <h2 className="section-title">Benutzer & Rollen</h2>
-
-                                    {pendingUsers.length > 0 && (
-                                        <div className="pending-section mb-8">
-                                            <h3 className="section-subtitle flex items-center gap-2">
-                                                <Clock size={14} className="text-sakura" /> Offene Anfragen ({pendingUsers.length})
-                                            </h3>
-                                            <div className="users-list">
-                                                {pendingUsers.map(user => (
-                                                    <div key={user.id} className="user-row row-item surface highlight">
-                                                        <div className="avatar-wrapper">
-                                                            {user.avatar ? (
-                                                                <img src={`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`} className="avatar-circle" alt="" />
-                                                            ) : (
-                                                                <div className="avatar-circle avatar-placeholder">{user.name.substring(0, 1)}</div>
-                                                            )}
-                                                        </div>
-                                                        <div className="user-info">
-                                                            <p className="user-name">{user.name}</p>
-                                                            <p className="user-status text-xs">Wartet auf Freischaltung</p>
-                                                        </div>
-                                                        <div className="flex gap-2">
-                                                            <button className="btn btn-sm btn-primary" onClick={() => handleApproveUser(user, 'editor')}>Editor</button>
-                                                            <button className="btn btn-sm btn-secondary" onClick={() => handleApproveUser(user, 'viewer')}>Viewer</button>
-                                                        </div>
-                                                    </div>
-                                                ))}
+                                                <button className="btn btn-sm btn-primary" onClick={() => handleApproveUser(user, 'editor')}>Als Editor freischalten</button>
+                                                <button className="btn btn-sm btn-secondary" onClick={() => handleApproveUser(user, 'viewer')}>Als Viewer freischalten</button>
                                             </div>
                                         </div>
-                                    )}
-
-                                    <h3 className="section-subtitle mt-8">Verifizierte Benutzer</h3>
-                                    <div className="users-list">
-                                        {approvedUsers.map(user => {
-                                            const isSelf = user.id === currentUser?.id;
-                                            return (
-                                                <div key={user.id} className="user-grid-item surface">
-                                                    <div className="flex items-center gap-3 mb-3">
-                                                        <div className="avatar-wrapper">
-                                                            {user.avatar ? (
-                                                                <img src={`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=40`} className="avatar-circle" alt="" />
-                                                            ) : (
-                                                                <div className="avatar-circle avatar-placeholder">{user.name.substring(0, 1)}</div>
-                                                            )}
-                                                        </div>
-                                                        <div className="user-info flex-1">
-                                                            <p className="user-name">{user.name} {isSelf && <span className="self-tag">Ich</span>}</p>
-                                                            <p className="user-id text-xs">ID: {user.id}</p>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="admin-controls-row">
-                                                        <div className="role-switcher">
-                                                            {ROLE_OPTIONS.map(role => (
-                                                                <button
-                                                                    key={role}
-                                                                    disabled={isSelf}
-                                                                    className={`role-btn role-${role} ${user.role === role ? 'active' : ''}`}
-                                                                    onClick={() => handleUserRoleChange(user, role)}
-                                                                >
-                                                                    {role}
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-
-                                                    {!isSelf && user.role === 'editor' && (
-                                                        <div className="permissions-grid">
-                                                            <label className="perm-label">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={user.permissions?.canDeleteColumns !== false}
-                                                                    onChange={async (e) => {
-                                                                        try {
-                                                                            await axios.post(`${API_URL}/admin/users/${user.id}`, {
-                                                                                status: user.status || 'approved',
-                                                                                website_role: user.role,
-                                                                                can_delete_columns: e.target.checked,
-                                                                                can_delete_cards: user.permissions?.canDeleteCards !== false
-                                                                            });
-                                                                            if (fetchUsers) fetchUsers();
-                                                                        } catch { showAlert('Fehler beim Speichern.'); }
-                                                                    }}
-                                                                />
-                                                                <span>Spalten löschen</span>
-                                                            </label>
-                                                            <label className="perm-label">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={user.permissions?.canDeleteCards !== false}
-                                                                    onChange={async (e) => {
-                                                                        try {
-                                                                            await axios.post(`${API_URL}/admin/users/${user.id}`, {
-                                                                                status: user.status || 'approved',
-                                                                                website_role: user.role,
-                                                                                can_delete_columns: user.permissions?.canDeleteColumns !== false,
-                                                                                can_delete_cards: e.target.checked
-                                                                            });
-                                                                            if (fetchUsers) fetchUsers();
-                                                                        } catch { showAlert('Fehler beim Speichern.'); }
-                                                                    }}
-                                                                />
-                                                                <span>Karten löschen</span>
-                                                            </label>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
+                                    ))}
                                 </div>
-                            )}
+                            </div>
+                        )}
 
-                            {/* ── COLUMNS ── */}
-                            {activeTab === 'columns' && (
-                                <div className="admin-section">
-                                    <h2 className="section-title">Board-Spalten</h2>
-                                    <div className="columns-grid">
-                                        {state.columns.map(col => (
-                                            <div key={col.id} className="col-card surface">
-                                                <div className="col-accent" style={{ background: col.color }} />
-                                                <div className="col-header p-4">
-                                                    <p className="font-bold">{col.title}</p>
-                                                    <p className="text-xs text-muted mt-1">{col.cardIds.length} Karten hinterlegt</p>
-                                                </div>
-                                                <div className="col-footer p-4 pt-0 flex justify-end">
-                                                    <button
-                                                        className="btn btn-danger btn-icon btn-sm"
-                                                        onClick={() => {
-                                                            if (confirm(`Soll die Spalte "${col.title}" wirklich dauerhaft gelöscht werden?`)) {
-                                                                dispatch({ type: 'DELETE_COLUMN', columnId: col.id });
-                                                            }
+                        <h3 className="text-sm font-bold text-muted" style={{ marginBottom: '8px' }}>Freigeschaltete Benutzer</h3>
+                        <div className="users-list">
+                            {approvedUsers.map(user => {
+                                const isSelf = user.id === currentUser?.id;
+                                return (
+                                    <div key={user.id} className="user-row surface">
+                                        {user.avatar && user.avatar.length > 5 ? (
+                                            <img src={`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`} className="avatar avatar-lg" alt="" />
+                                        ) : (
+                                            <div className="avatar avatar-lg">{user.name.substring(0, 2).toUpperCase()}</div>
+                                        )}
+                                        <div className="user-info">
+                                            <p className="font-semibold">{user.name} {isSelf && <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>(du)</span>}</p>
+                                            <p className="text-xs text-muted">Discord ID: {user.id}</p>
+                                        </div>
+                                        <div className="role-selector">
+                                            {ROLE_OPTIONS.map(role => (
+                                                <button
+                                                    key={role}
+                                                    disabled={isSelf}
+                                                    title={isSelf ? 'Du kannst deine eigene Rolle nicht ändern' : ''}
+                                                    className={`role-btn ${user.role === role ? 'selected' : ''} role-${role}`}
+                                                    style={isSelf ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
+                                                    onClick={() => handleUserRoleChange(user, role)}
+                                                >
+                                                    {role}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        {!isSelf && user.role === 'editor' && (
+                                            <div className="permissions-row">
+                                                <label className="perm-check">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={user.permissions?.canDeleteColumns !== false}
+                                                        onChange={async (e) => {
+                                                            try {
+                                                                await axios.post(`${API_URL}/admin/users/${user.id}`, {
+                                                                    status: user.status || 'approved',
+                                                                    website_role: user.role,
+                                                                    can_delete_columns: e.target.checked,
+                                                                    can_delete_cards: user.permissions?.canDeleteCards !== false
+                                                                });
+                                                                if (fetchUsers) fetchUsers();
+                                                            } catch { showAlert('Fehler beim Speichern.'); }
                                                         }}
-                                                    >
-                                                        <Trash2 size={13} />
-                                                    </button>
-                                                </div>
+                                                    />
+                                                    Spalten löschen
+                                                </label>
+                                                <label className="perm-check">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={user.permissions?.canDeleteCards !== false}
+                                                        onChange={async (e) => {
+                                                            try {
+                                                                await axios.post(`${API_URL}/admin/users/${user.id}`, {
+                                                                    status: user.status || 'approved',
+                                                                    website_role: user.role,
+                                                                    can_delete_columns: user.permissions?.canDeleteColumns !== false,
+                                                                    can_delete_cards: e.target.checked
+                                                                });
+                                                                if (fetchUsers) fetchUsers();
+                                                            } catch { showAlert('Fehler beim Speichern.'); }
+                                                        }}
+                                                    />
+                                                    Karten löschen
+                                                </label>
                                             </div>
-                                        ))}
+                                        )}
                                     </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+
+                {/* ── COLUMNS ── */}
+                {activeTab === 'columns' && (
+                    <div className="admin-section">
+                        <div className="section-header">
+                            <h2 className="section-title">Board-Spalten</h2>
+                        </div>
+
+                        <div className="columns-list">
+                            {state.columns.map(col => (
+                                <div key={col.id} className="col-row surface">
+                                    <div className="col-color-swatch" style={{ background: col.color }} />
+                                    <div>
+                                        <p className="font-semibold">{col.title}</p>
+                                        <p className="text-xs text-muted">{col.cardIds.length} Karten</p>
+                                    </div>
+                                    <button
+                                        className="btn btn-danger btn-icon btn-sm"
+                                        onClick={() => {
+                                            if (confirm(`Spalte "${col.title}" und alle ihre Karten löschen?`)) {
+                                                dispatch({ type: 'DELETE_COLUMN', columnId: col.id });
+                                            }
+                                        }}
+                                    >
+                                        <Trash2 size={13} />
+                                    </button>
                                 </div>
-                            )}
+                            ))}
+                        </div>
+                    </div>
+                )}
 
-                            {/* ── MODERATION ── */}
-                            {activeTab === 'moderation' && (
-                                <div className="admin-section">
-                                    <div className="section-header">
-                                        <h2 className="section-title flex items-center gap-2">
-                                            <Swords size={18} className="text-sakura" /> Discord Moderation
-                                        </h2>
-                                        <button className="btn btn-secondary btn-sm" onClick={loadGuildMembers} disabled={membersLoading}>
-                                            {membersLoading ? <Clock className="animate-spin" size={14} /> : <Users size={14} />}
-                                            {membersLoading ? 'Lädt…' : 'Mitglieder laden'}
-                                        </button>
-                                    </div>
+                {/* ── MODERATION ── */}
+                {activeTab === 'moderation' && (
+                    <div className="admin-section">
+                        <div className="section-header">
+                            <h2 className="section-title flex items-center gap-2"><Swords size={16} /> Discord Moderation</h2>
+                            <button className="btn btn-secondary btn-sm" onClick={loadGuildMembers} disabled={membersLoading}>
+                                {membersLoading ? '⏳ Lädt…' : <><Users size={14} /> Mitglieder laden</>}
+                            </button>
+                        </div>
 
-                                    <div className="mod-search-container surface elevated mb-6">
-                                        <div className="search-bar">
-                                            <input
-                                                className="input search-input"
-                                                placeholder="Name oder ID suchen…"
-                                                value={memberSearch}
-                                                onChange={e => setMemberSearch(e.target.value)}
-                                            />
-                                        </div>
-                                        {guildMembers.length > 0 && (
-                                            <div className="member-picker-scroll custom-scrollbar">
-                                                {guildMembers
-                                                    .filter(m => {
-                                                        const q = memberSearch.toLowerCase();
-                                                        return !q || m.displayName.toLowerCase().includes(q) || m.username.toLowerCase().includes(q) || m.id.includes(q);
-                                                    })
-                                                    .map(m => (
-                                                        <button
-                                                            key={m.id}
-                                                            className={`member-option ${selectedMember?.id === m.id ? 'active' : ''}`}
-                                                            onClick={() => { setSelectedMember({ id: m.id, displayName: m.displayName }); setModUserId(m.id); }}
-                                                        >
-                                                            <div className="avatar-sm-wrapper">
-                                                                {m.avatar ? <img src={m.avatar} alt="" /> : <div className="avatar-placeholder">{m.displayName[0]}</div>}
-                                                            </div>
-                                                            <div className="member-details">
-                                                                <span className="member-name">{m.displayName}</span>
-                                                                <span className="member-tag">@{m.username}</span>
-                                                            </div>
-                                                            {selectedMember?.id === m.id && <Check size={14} className="text-sakura" />}
-                                                        </button>
-                                                    ))
-                                                }
-                                            </div>
-                                        )}
-                                        {guildMembers.length === 0 && !membersLoading && (
-                                            <div className="p-8 text-center text-muted text-sm">
-                                                Lade die Discord-Mitglieder, um Aktionen durchzuführen.
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <AnimatePresence>
-                                        {selectedMember && (
-                                            <motion.div
-                                                initial={{ opacity: 0, y: 10 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                className="mod-actions-area surface elevated"
+                        {/* Member Search */}
+                        {guildMembers.length > 0 && (
+                            <div className="mod-member-list surface" style={{ padding: '12px' }}>
+                                <input
+                                    className="input"
+                                    placeholder="Name oder ID suchen…"
+                                    value={memberSearch}
+                                    onChange={e => setMemberSearch(e.target.value)}
+                                    style={{ marginBottom: '8px' }}
+                                />
+                                <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    {guildMembers
+                                        .filter(m => {
+                                            const q = memberSearch.toLowerCase();
+                                            return !q || m.displayName.toLowerCase().includes(q) || m.username.toLowerCase().includes(q) || m.id.includes(q);
+                                        })
+                                        .slice(0, 50)
+                                        .map(m => (
+                                            <button
+                                                key={m.id}
+                                                className={`mod-member-btn ${selectedMember?.id === m.id ? 'selected' : ''}`}
+                                                onClick={() => { setSelectedMember({ id: m.id, displayName: m.displayName }); setModUserId(m.id); }}
                                             >
-                                                <div className="mod-header-active">
-                                                    <span className="text-sm text-muted">Ausgewählt:</span>
-                                                    <span className="text-sakura font-bold ml-2">{selectedMember.displayName}</span>
-                                                </div>
-
-                                                <div className="form-grid mt-4">
-                                                    <div className="form-group">
-                                                        <label className="form-label">Grund</label>
-                                                        <input className="input" placeholder="Warum erfolgt diese Maßnahme?" value={modReason} onChange={e => setModReason(e.target.value)} />
-                                                    </div>
-                                                    <div className="form-group">
-                                                        <label className="form-label">Timeout (Minuten)</label>
-                                                        <input className="input" type="number" min={1} value={modDuration} onChange={e => setModDuration(Number(e.target.value))} />
-                                                    </div>
-                                                </div>
-
-                                                <div className="action-buttons-group mt-6">
-                                                    <button className="btn btn-warning" onClick={() => handleModerationAction('timeout')} disabled={modLoading}>
-                                                        {modLoading ? '...' : <Clock size={16} />} Timeout
-                                                    </button>
-                                                    <button className="btn btn-danger-soft" onClick={() => handleModerationAction('kick')} disabled={modLoading}>
-                                                        {modLoading ? '...' : <UserX size={16} />} Kicken
-                                                    </button>
-                                                    <button className="btn btn-danger" onClick={() => { if (confirm('Sicher bannen?')) handleModerationAction('ban') }} disabled={modLoading}>
-                                                        {modLoading ? '...' : <Shield size={16} />} Bannen
-                                                    </button>
-                                                </div>
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
-
-                                    <div className="mod-funk-section mt-10">
-                                        <h3 className="section-subtitle flex items-center gap-2">
-                                            <Zap size={15} className="text-sakura" /> Funk-System Steuerung
-                                        </h3>
-                                        <div className="funk-buttons-grid mt-4">
-                                            <button className="funk-btn btn-sakura" onClick={() => handleFunkUpdate('sakura')} disabled={!!funkLoading}>
-                                                {funkLoading === 'sakura' ? '...' : '🌸 Sakura Funk'}
+                                                {m.avatar ? (
+                                                    <img src={m.avatar} alt="" style={{ width: 24, height: 24, borderRadius: '50%' }} />
+                                                ) : (
+                                                    <div className="avatar avatar-sm">{m.displayName[0]}</div>
+                                                )}
+                                                <span className="font-semibold" style={{ fontSize: '13px' }}>{m.displayName}</span>
+                                                <span className="text-xs text-muted">@{m.username}</span>
+                                                {selectedMember?.id === m.id && <Check size={14} style={{ marginLeft: 'auto', color: 'var(--sakura-400)' }} />}
                                             </button>
-                                            <button className="funk-btn btn-neon" onClick={() => handleFunkUpdate('neon')} disabled={!!funkLoading}>
-                                                {funkLoading === 'neon' ? '...' : '🌌 Neon Lotus'}
-                                            </button>
-                                            <button className="funk-btn btn-dark" onClick={() => handleFunkUpdate('blacklist')} disabled={!!funkLoading}>
-                                                {funkLoading === 'blacklist' ? '...' : '🚫 Blacklist'}
-                                            </button>
-                                        </div>
+                                        ))
+                                    }
+                                </div>
+                            </div>
+                        )}
+
+                        {guildMembers.length === 0 && !membersLoading && (
+                            <p className="text-sm text-muted" style={{ padding: '20px 0' }}>Lade die Discord-Mitglieder, um Aktionen durchzuführen.</p>
+                        )}
+
+                        {/* Selected member actions */}
+                        {selectedMember && (
+                            <div className="mod-actions surface" style={{ padding: '16px', marginTop: '12px' }}>
+                                <p className="text-sm" style={{ marginBottom: '12px' }}>
+                                    Ausgewählt: <strong style={{ color: 'var(--sakura-400)' }}>{selectedMember.displayName}</strong>
+                                </p>
+                                <div className="flex gap-3" style={{ marginBottom: '12px' }}>
+                                    <div className="form-group" style={{ flex: 1 }}>
+                                        <label className="form-label">Grund</label>
+                                        <input className="input" placeholder="Warum?" value={modReason} onChange={e => setModReason(e.target.value)} />
+                                    </div>
+                                    <div className="form-group" style={{ width: '120px' }}>
+                                        <label className="form-label">Timeout (Min)</label>
+                                        <input className="input" type="number" min={1} value={modDuration} onChange={e => setModDuration(Number(e.target.value))} />
                                     </div>
                                 </div>
-                            )}
-                        </motion.div>
-                    </AnimatePresence>
-                </main>
+                                <div className="flex gap-2">
+                                    <button className="btn btn-sm" style={{ background: 'rgba(255,165,0,0.15)', color: '#ffa500', border: '1px solid rgba(255,165,0,0.3)' }} onClick={() => handleModerationAction('timeout')} disabled={modLoading}>
+                                        <Clock size={14} /> Timeout
+                                    </button>
+                                    <button className="btn btn-sm" style={{ background: 'rgba(255,71,87,0.1)', color: '#ff4757', border: '1px solid rgba(255,71,87,0.2)' }} onClick={() => handleModerationAction('kick')} disabled={modLoading}>
+                                        <UserX size={14} /> Kicken
+                                    </button>
+                                    <button className="btn btn-danger btn-sm" onClick={() => { if (confirm('Sicher bannen?')) handleModerationAction('ban'); }} disabled={modLoading}>
+                                        <Shield size={14} /> Bannen
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Funk System */}
+                        <div style={{ marginTop: '24px' }}>
+                            <h3 className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--sakura-400)', marginBottom: '12px' }}>
+                                <Zap size={14} /> Funk-System Steuerung
+                            </h3>
+                            <div className="flex gap-3">
+                                <button className="btn btn-sm" style={{ background: 'rgba(255,107,157,0.1)', color: 'var(--sakura-400)', border: '1px solid rgba(255,107,157,0.3)' }} onClick={() => handleFunkUpdate('sakura')} disabled={!!funkLoading}>
+                                    {funkLoading === 'sakura' ? '...' : '🌸 Sakura Funk'}
+                                </button>
+                                <button className="btn btn-sm" style={{ background: 'rgba(0,255,255,0.08)', color: '#00cccc', border: '1px solid rgba(0,255,255,0.2)' }} onClick={() => handleFunkUpdate('neon')} disabled={!!funkLoading}>
+                                    {funkLoading === 'neon' ? '...' : '🌌 Neon Lotus'}
+                                </button>
+                                <button className="btn btn-sm" style={{ background: 'rgba(0,0,0,0.2)', color: 'var(--text-secondary)', border: '1px solid #333' }} onClick={() => handleFunkUpdate('blacklist')} disabled={!!funkLoading}>
+                                    {funkLoading === 'blacklist' ? '...' : '🚫 Blacklist'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

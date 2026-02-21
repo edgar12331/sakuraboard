@@ -1,7 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback, useReducer } from 'react';
 import axios from 'axios';
 import type { AppState, Card, Column, Tag, User } from '../types';
-import { initialTags, initialCards, initialColumns } from '../data/initialData';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://sakura-bot-fkih.onrender.com/api';
 
@@ -18,9 +17,7 @@ axios.interceptors.request.use(config => {
 });
 axios.defaults.withCredentials = true;
 
-// Wir nutzen weiterhin einen Teil des Reducers für lokale Board-Aktionen
-// In einer echten App würde jede Aktion an die API gesendet werden.
-// Hier behalten wir die Board-Zustände lokal im Reducer und speichern nur Auth in der API.
+// Board-Aktionen werden lokal im Reducer UND an die API geschickt.
 type Action =
     | { type: 'ADD_CARD'; card: Card }
     | { type: 'UPDATE_CARD'; card: Card }
@@ -31,12 +28,16 @@ type Action =
     | { type: 'DELETE_COLUMN'; columnId: string }
     | { type: 'ADD_TAG'; tag: Tag }
     | { type: 'UPDATE_TAG'; tag: Tag }
-    | { type: 'DELETE_TAG'; tagId: string };
+    | { type: 'DELETE_TAG'; tagId: string }
+    | { type: 'SET_BOARD'; tags: Tag[]; columns: Column[]; cards: Card[] };
 
 function reducer(state: AppState, action: Action): AppState {
     switch (action.type) {
+        case 'SET_BOARD':
+            return { ...state, tags: action.tags, columns: action.columns, cards: action.cards };
         case 'ADD_CARD': {
-            const col = state.columns.find(c => c.id === action.card.columnId)!;
+            const col = state.columns.find(c => c.id === action.card.columnId);
+            if (!col) return state;
             return {
                 ...state,
                 cards: [...state.cards, action.card],
@@ -58,10 +59,11 @@ function reducer(state: AppState, action: Action): AppState {
             };
         case 'MOVE_CARD': {
             const { cardId, fromColId, toColId, toIndex } = action;
-            const fromCol = state.columns.find(c => c.id === fromColId)!;
-            const toCol = state.columns.find(c => c.id === toColId)!;
+            const fromCol = state.columns.find(c => c.id === fromColId);
+            const toCol = state.columns.find(c => c.id === toColId);
+            if (!fromCol || !toCol) return state;
             const newFromIds = fromCol.cardIds.filter(id => id !== cardId);
-            let newToIds = toCol.cardIds.filter(id => id !== cardId);
+            const newToIds = toCol.cardIds.filter(id => id !== cardId);
             newToIds.splice(toIndex, 0, cardId);
             return {
                 ...state,
@@ -76,7 +78,8 @@ function reducer(state: AppState, action: Action): AppState {
         case 'ADD_COLUMN': return { ...state, columns: [...state.columns, action.column] };
         case 'UPDATE_COLUMN': return { ...state, columns: state.columns.map(c => c.id === action.column.id ? action.column : c) };
         case 'DELETE_COLUMN': {
-            const col = state.columns.find(c => c.id === action.columnId)!;
+            const col = state.columns.find(c => c.id === action.columnId);
+            if (!col) return state;
             return {
                 ...state,
                 cards: state.cards.filter(c => !col.cardIds.includes(c.id)),
@@ -96,48 +99,12 @@ function reducer(state: AppState, action: Action): AppState {
     }
 }
 
-// ─── localStorage board persistence ───
-const BOARD_STORAGE_KEY = 'sakura_board_state';
-
-function loadBoardState() {
-    try {
-        const saved = localStorage.getItem(BOARD_STORAGE_KEY);
-        if (saved) {
-            const parsed = JSON.parse(saved);
-            return {
-                tags: parsed.tags ?? initialTags,
-                cards: parsed.cards ?? initialCards,
-                columns: parsed.columns ?? initialColumns,
-            };
-        }
-    } catch { /* ignore */ }
-    return { tags: initialTags, cards: initialCards, columns: initialColumns };
-}
-
-function saveBoardState(state: AppState) {
-    try {
-        localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify({
-            tags: state.tags,
-            cards: state.cards,
-            columns: state.columns,
-        }));
-    } catch { /* ignore */ }
-}
-
-// Wrap reducer to persist on every action
-function persistingReducer(state: AppState, action: Action): AppState {
-    const next = reducer(state, action);
-    saveBoardState(next);
-    return next;
-}
-
-const saved = loadBoardState();
 const initialState: AppState = {
     currentUser: null,
     users: [],
-    tags: saved.tags,
-    cards: saved.cards,
-    columns: saved.columns,
+    tags: [],
+    cards: [],
+    columns: [],
     isLoading: true,
 };
 
@@ -151,17 +118,71 @@ interface AppContextValue {
     isAdmin: () => boolean;
     isLoading: boolean;
     logout: () => void;
-    users: User[]; // All system users loaded from API
+    users: User[];
     fetchUsers: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
 
+// Sync actions to API (fire-and-forget, errors logged)
+function syncToApi(action: Action) {
+    switch (action.type) {
+        case 'ADD_CARD':
+            axios.post(`${API_URL}/board/cards`, action.card).catch(e => console.error('Sync ADD_CARD failed', e));
+            break;
+        case 'UPDATE_CARD':
+            axios.put(`${API_URL}/board/cards/${action.card.id}`, action.card).catch(e => console.error('Sync UPDATE_CARD failed', e));
+            break;
+        case 'DELETE_CARD':
+            axios.delete(`${API_URL}/board/cards/${action.cardId}`).catch(e => console.error('Sync DELETE_CARD failed', e));
+            break;
+        case 'MOVE_CARD':
+            axios.put(`${API_URL}/board/cards/${action.cardId}/move`, { columnId: action.toColId, sortOrder: action.toIndex }).catch(e => console.error('Sync MOVE_CARD failed', e));
+            break;
+        case 'ADD_COLUMN':
+            axios.post(`${API_URL}/board/columns`, action.column).catch(e => console.error('Sync ADD_COLUMN failed', e));
+            break;
+        case 'UPDATE_COLUMN':
+            axios.put(`${API_URL}/board/columns/${action.column.id}`, action.column).catch(e => console.error('Sync UPDATE_COLUMN failed', e));
+            break;
+        case 'DELETE_COLUMN':
+            axios.delete(`${API_URL}/board/columns/${action.columnId}`).catch(e => console.error('Sync DELETE_COLUMN failed', e));
+            break;
+        case 'ADD_TAG':
+            axios.post(`${API_URL}/board/tags`, action.tag).catch(e => console.error('Sync ADD_TAG failed', e));
+            break;
+        case 'UPDATE_TAG':
+            axios.put(`${API_URL}/board/tags/${action.tag.id}`, action.tag).catch(e => console.error('Sync UPDATE_TAG failed', e));
+            break;
+        case 'DELETE_TAG':
+            axios.delete(`${API_URL}/board/tags/${action.tagId}`).catch(e => console.error('Sync DELETE_TAG failed', e));
+            break;
+    }
+}
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
-    const [state, dispatch] = useReducer(persistingReducer, initialState);
+    const [state, rawDispatch] = useReducer(reducer, initialState);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [users, setUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+
+    // Wrapped dispatch: update local state AND sync to API
+    const dispatch = useCallback((action: Action) => {
+        rawDispatch(action);
+        if (action.type !== 'SET_BOARD') {
+            syncToApi(action);
+        }
+    }, []);
+
+    // Load board data from API
+    const fetchBoard = useCallback(async () => {
+        try {
+            const res = await axios.get(`${API_URL}/board`);
+            rawDispatch({ type: 'SET_BOARD', tags: res.data.tags, columns: res.data.columns, cards: res.data.cards });
+        } catch (err) {
+            console.error('Could not load board from API:', err);
+        }
+    }, []);
 
     // Authenticate user on load
     useEffect(() => {
@@ -187,9 +208,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             setCurrentUser(res.data);
             if (res.data.status === 'approved') {
                 fetchUsers();
+                fetchBoard(); // Load board data from DB
             }
         } catch (err: any) {
-            // Only clear token on real auth errors (401/403), not on network/timeout
             if (err?.response?.status === 401 || err?.response?.status === 403) {
                 clearToken();
             }
@@ -262,7 +283,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return card.allowedEditorIds.includes(currentUser.id);
     }, [currentUser]);
 
-    // Combine reducer state with react auth state
     const fullState = {
         ...state,
         currentUser,
