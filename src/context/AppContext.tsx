@@ -124,39 +124,31 @@ interface AppContextValue {
 
 const AppContext = createContext<AppContextValue | null>(null);
 
-// Sync actions to API (fire-and-forget, errors logged)
-function syncToApi(action: Action) {
+// Sync actions to API — returns promise
+function syncToApi(action: Action): Promise<void> {
     switch (action.type) {
         case 'ADD_CARD':
-            axios.post(`${API_URL}/board/cards`, action.card).catch(e => console.error('Sync ADD_CARD failed', e));
-            break;
+            return axios.post(`${API_URL}/board/cards`, action.card).then(() => { });
         case 'UPDATE_CARD':
-            axios.put(`${API_URL}/board/cards/${action.card.id}`, action.card).catch(e => console.error('Sync UPDATE_CARD failed', e));
-            break;
+            return axios.put(`${API_URL}/board/cards/${action.card.id}`, action.card).then(() => { });
         case 'DELETE_CARD':
-            axios.delete(`${API_URL}/board/cards/${action.cardId}`).catch(e => console.error('Sync DELETE_CARD failed', e));
-            break;
+            return axios.delete(`${API_URL}/board/cards/${action.cardId}`).then(() => { });
         case 'MOVE_CARD':
-            axios.put(`${API_URL}/board/cards/${action.cardId}/move`, { columnId: action.toColId, sortOrder: action.toIndex }).catch(e => console.error('Sync MOVE_CARD failed', e));
-            break;
+            return axios.put(`${API_URL}/board/cards/${action.cardId}/move`, { columnId: action.toColId, sortOrder: action.toIndex }).then(() => { });
         case 'ADD_COLUMN':
-            axios.post(`${API_URL}/board/columns`, action.column).catch(e => console.error('Sync ADD_COLUMN failed', e));
-            break;
+            return axios.post(`${API_URL}/board/columns`, action.column).then(() => { });
         case 'UPDATE_COLUMN':
-            axios.put(`${API_URL}/board/columns/${action.column.id}`, action.column).catch(e => console.error('Sync UPDATE_COLUMN failed', e));
-            break;
+            return axios.put(`${API_URL}/board/columns/${action.column.id}`, action.column).then(() => { });
         case 'DELETE_COLUMN':
-            axios.delete(`${API_URL}/board/columns/${action.columnId}`).catch(e => console.error('Sync DELETE_COLUMN failed', e));
-            break;
+            return axios.delete(`${API_URL}/board/columns/${action.columnId}`).then(() => { });
         case 'ADD_TAG':
-            axios.post(`${API_URL}/board/tags`, action.tag).catch(e => console.error('Sync ADD_TAG failed', e));
-            break;
+            return axios.post(`${API_URL}/board/tags`, action.tag).then(() => { });
         case 'UPDATE_TAG':
-            axios.put(`${API_URL}/board/tags/${action.tag.id}`, action.tag).catch(e => console.error('Sync UPDATE_TAG failed', e));
-            break;
+            return axios.put(`${API_URL}/board/tags/${action.tag.id}`, action.tag).then(() => { });
         case 'DELETE_TAG':
-            axios.delete(`${API_URL}/board/tags/${action.tagId}`).catch(e => console.error('Sync DELETE_TAG failed', e));
-            break;
+            return axios.delete(`${API_URL}/board/tags/${action.tagId}`).then(() => { });
+        default:
+            return Promise.resolve();
     }
 }
 
@@ -166,12 +158,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const [users, setUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const isAuthenticatedRef = useRef(false);
+    // Cooldown: pause polling for 15s after any local action
+    const lastLocalActionRef = useRef(0);
 
     // Wrapped dispatch: update local state AND sync to API
     const dispatch = useCallback((action: Action) => {
         rawDispatch(action);
         if (action.type !== 'SET_BOARD') {
-            syncToApi(action);
+            // Pause polling while we sync
+            lastLocalActionRef.current = Date.now();
+            syncToApi(action)
+                .then(() => {
+                    console.log(`✅ Sync ${action.type} OK`);
+                })
+                .catch(err => {
+                    console.error(`❌ Sync ${action.type} FAILED:`, err?.response?.status, err?.message);
+                });
         }
     }, []);
 
@@ -190,11 +192,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         checkAuth();
     }, []);
 
-    // Live sync: poll board every 5 seconds
+    // Live sync: poll every 5 seconds, but SKIP if user made a change in the last 15 seconds
     useEffect(() => {
         const interval = setInterval(() => {
             if (isAuthenticatedRef.current) {
-                fetchBoard();
+                const msSinceLastAction = Date.now() - lastLocalActionRef.current;
+                if (msSinceLastAction > 15000) {
+                    fetchBoard();
+                }
             }
         }, 5000);
         return () => clearInterval(interval);
@@ -220,7 +225,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             if (res.data.status === 'approved') {
                 isAuthenticatedRef.current = true;
                 fetchUsers();
-                fetchBoard(); // Load board data from DB
+                fetchBoard();
             }
         } catch (err: any) {
             if (err?.response?.status === 401 || err?.response?.status === 403) {
@@ -259,6 +264,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         } catch (error) {
             console.error(error);
         } finally {
+            isAuthenticatedRef.current = false;
             clearToken();
             setCurrentUser(null);
             window.location.href = '/';
