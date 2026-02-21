@@ -11,4 +11,4 @@ export const LOGO_URL = process.env.LOGO_URL || "https://i.postimg.cc/1381yM8G/g
 export const ADMIN_ROLE_ID = process.env.ADMIN_ROLE_ID || '1096402401424060516'; // Inhaber
 export const MOD_ROLE_ID = process.env.MOD_ROLE_ID || '1136028969481797743'; // B. King
 
-export const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyAh2iNqAkVTGO270JcmFL-7OwZO6cL6_Cc';
+export const GEMINI_API_KEY = 'AIzaSyAh2iNqAkVTGO270JcmFL-7OwZO6cL6_Cc';
