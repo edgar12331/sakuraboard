@@ -2,7 +2,7 @@ import { AlertCircle, Cherry, LogIn } from 'lucide-react';
 
 export function LoginPage() {
     const handleDiscordLogin = () => {
-        window.location.href = 'http://localhost:3001/api/auth/discord';
+        window.location.href = 'https://sakura-bot-fkih.onrender.com/api/auth/discord';
     };
 
     return (
