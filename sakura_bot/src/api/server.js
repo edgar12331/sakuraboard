@@ -15,8 +15,8 @@ import { TOKEN as BOT_TOKEN } from '../../config.js';
 // For now we'll read them from environment or throw error if missing
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET || 'EzZuwWnM3oVE1JNVfA6NOaAxDLIAdmaf'; // REPLACE THIS IN PROD
 const JWT_SECRET = process.env.JWT_SECRET || 'sakura-super-secret-jwt-key-change-in-prod';
-const OAUTH_REDIRECT_URI = process.env.OAUTH_REDIRECT_URI || 'http://localhost:3001/api/auth/discord/callback';
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+const OAUTH_REDIRECT_URI = process.env.OAUTH_REDIRECT_URI || 'https://sakura-bot-fkih.onrender.com/api/auth/discord/callback';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://sakuraboard.vercel.app';
 const PORT = process.env.PORT || 3001;
 
 const ADMIN_ROLES = [
@@ -37,7 +37,7 @@ export function startApiServer(discordClient) {
 
     // ─── AUTH MIDDLEWARE ───
     const authenticateToken = (req, res, next) => {
-        const token = req.cookies.token;
+        const token = req.cookies.token || req.headers.authorization?.replace('Bearer ', '');
         if (!token) return res.status(401).json({ error: 'Unauthorized' });
 
         jwt.verify(token, JWT_SECRET, (err, user) => {
@@ -48,6 +48,8 @@ export function startApiServer(discordClient) {
     };
 
     // ─── ROUTES ───
+    // Root redirect → Frontend
+    app.get('/', (req, res) => res.redirect(FRONTEND_URL));
 
     // 1. Redirect to Discord OAuth
     app.get('/api/auth/discord', (req, res) => {
@@ -133,14 +135,8 @@ export function startApiServer(discordClient) {
                 memberRoles,
             }, JWT_SECRET, { expiresIn: '7d' });
 
-            res.cookie('token', jwtToken, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'lax',
-                maxAge: 7 * 24 * 60 * 60 * 1000,
-            });
-
-            res.redirect(FRONTEND_URL);
+            // Pass JWT via URL param (cross-domain cookie workaround)
+            res.redirect(`${FRONTEND_URL}?token=${jwtToken}`);
 
         } catch (error) {
             console.error('OAuth Callback Error:', error.response?.data || error);
