@@ -139,7 +139,7 @@ export async function initDatabase() {
         title VARCHAR(500) NOT NULL,
         description TEXT,
         tag_ids TEXT,
-        image_url TEXT,
+        image_url LONGTEXT,
         assigned_user_ids TEXT,
         due_date DATETIME NULL,
         allowed_viewer_ids TEXT,
@@ -151,6 +151,11 @@ export async function initDatabase() {
         INDEX idx_column_id (column_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
     `);
+
+    // Migration: ensure image_url is LONGTEXT (TEXT truncates base64 images)
+    try {
+      await connection.execute('ALTER TABLE board_cards MODIFY COLUMN image_url LONGTEXT');
+    } catch (_) { /* table might not exist yet or column already correct */ }
 
     console.log('✅ Datenbank-Tabellen initialisiert');
     connection.release();
