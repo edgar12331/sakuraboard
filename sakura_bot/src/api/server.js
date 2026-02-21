@@ -481,15 +481,25 @@ export function startApiServer(discordClient) {
     });
 
     // ── Cards CRUD ──
+    function formatDateForMySQL(isoString) {
+        if (!isoString) return null;
+        try {
+            return new Date(isoString).toISOString().slice(0, 19).replace('T', ' ');
+        } catch (e) {
+            return null;
+        }
+    }
+
     app.post('/api/board/cards', authenticateToken, async (req, res) => {
         const { id, columnId, title, description, tagIds, imageUrl, assignedUserIds, dueDate, allowedViewerIds, allowedEditorIds, comments } = req.body;
         try {
+            const mysqlDueDate = formatDateForMySQL(dueDate);
             const [existing] = await pool.execute('SELECT MAX(sort_order) as max_order FROM board_cards WHERE column_id = ?', [columnId]);
             const sortOrder = (existing[0]?.max_order || 0) + 1;
             await pool.execute(
                 `INSERT INTO board_cards (id, column_id, title, description, tag_ids, image_url, assigned_user_ids, due_date, allowed_viewer_ids, allowed_editor_ids, comments, sort_order)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [id, columnId, title, description || '', JSON.stringify(tagIds || []), imageUrl || null, JSON.stringify(assignedUserIds || []), dueDate || null, JSON.stringify(allowedViewerIds || []), JSON.stringify(allowedEditorIds || []), JSON.stringify(comments || []), sortOrder]
+                [id, columnId, title, description || '', JSON.stringify(tagIds || []), imageUrl || null, JSON.stringify(assignedUserIds || []), mysqlDueDate, JSON.stringify(allowedViewerIds || []), JSON.stringify(allowedEditorIds || []), JSON.stringify(comments || []), sortOrder]
             );
             res.json({ success: true });
         } catch (err) {
@@ -501,9 +511,10 @@ export function startApiServer(discordClient) {
     app.put('/api/board/cards/:id', authenticateToken, async (req, res) => {
         const { title, description, tagIds, imageUrl, assignedUserIds, dueDate, allowedViewerIds, allowedEditorIds, comments, columnId } = req.body;
         try {
+            const mysqlDueDate = formatDateForMySQL(dueDate);
             await pool.execute(
                 `UPDATE board_cards SET title = ?, description = ?, tag_ids = ?, image_url = ?, assigned_user_ids = ?, due_date = ?, allowed_viewer_ids = ?, allowed_editor_ids = ?, comments = ?, column_id = ? WHERE id = ?`,
-                [title, description || '', JSON.stringify(tagIds || []), imageUrl || null, JSON.stringify(assignedUserIds || []), dueDate || null, JSON.stringify(allowedViewerIds || []), JSON.stringify(allowedEditorIds || []), JSON.stringify(comments || []), columnId, req.params.id]
+                [title, description || '', JSON.stringify(tagIds || []), imageUrl || null, JSON.stringify(assignedUserIds || []), mysqlDueDate, JSON.stringify(allowedViewerIds || []), JSON.stringify(allowedEditorIds || []), JSON.stringify(comments || []), columnId, req.params.id]
             );
             res.json({ success: true });
         } catch (err) {
