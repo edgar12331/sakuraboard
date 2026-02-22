@@ -36,6 +36,12 @@ function saveBg(value: string, userId: string | undefined) {
 export function useBackground(userId: string | undefined) {
     const [bg, setBg] = useState(() => getSavedBg(userId));
 
+    // Reload background when userId changes
+    useEffect(() => {
+        const savedBg = getSavedBg(userId);
+        setBg(savedBg);
+    }, [userId]);
+
     const changeBg = (value: string) => {
         setBg(value);
         saveBg(value, userId);
