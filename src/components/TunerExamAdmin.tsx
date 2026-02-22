@@ -91,19 +91,72 @@ export function TunerExamAdmin() {
                             const isArray = Array.isArray(ansArray);
                             const currentAnswers = ansArray ? (isArray ? (ansArray as unknown as string[]) : [String(ansArray)]) : [];
 
+                            // Calculate correctness if correctAnswers exist
+                            let isFullyCorrect = false;
+                            let isPartiallyCorrect = false;
+                            let earnedPoints = 0;
+
+                            if (q.correctAnswers && q.correctAnswers.length > 0) {
+                                const correctCount = currentAnswers.filter(a => q.correctAnswers!.includes(a)).length;
+                                const incorrectCount = currentAnswers.length - correctCount;
+
+                                if (correctCount === q.correctAnswers.length && incorrectCount === 0) {
+                                    isFullyCorrect = true;
+                                    earnedPoints = q.points;
+                                } else if (correctCount > 0) {
+                                    isPartiallyCorrect = true;
+                                    // Simple partial points logic: 1 point per correct answer, minus incorrect (floor at 0)
+                                    // This is a rough estimation, adjust if a stricter grading is needed
+                                    earnedPoints = Math.max(0, correctCount - incorrectCount);
+                                    if (earnedPoints > q.points) earnedPoints = q.points;
+                                }
+                            }
+
                             return (
                                 <div key={q.id} className="tuner-exam-answers-box" style={{ padding: '12px', background: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                                    <div className="tuner-exam-answer-label" style={{ fontWeight: '600', marginBottom: '8px', color: 'var(--text-primary)' }}>
-                                        {idx + 1}. {q.text}
-                                        <span style={{ fontSize: '11px', fontWeight: 'normal', color: 'var(--text-muted)', marginLeft: '8px' }}>({q.points} Pkt)</span>
-                                    </div>
-                                    <div className="tuner-exam-answer-tags" style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                                        {currentAnswers.length > 0 ? currentAnswers.map((ans, i) => (
-                                            <span key={i} className="tuner-exam-answer-tag" style={{ background: 'var(--bg-elevated)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', border: '1px solid var(--border)' }}>
-                                                {ans}
+                                    <div className="tuner-exam-answer-label" style={{ fontWeight: '600', marginBottom: '8px', color: 'var(--text-primary)', display: 'flex', justifyContent: 'space-between' }}>
+                                        <span>{idx + 1}. {q.text}</span>
+                                        {q.correctAnswers && q.correctAnswers.length > 0 && (
+                                            <span style={{ fontSize: '12px', fontWeight: 'bold', color: isFullyCorrect ? '#2ed573' : isPartiallyCorrect ? '#ffa502' : '#ff4757', marginLeft: '12px' }}>
+                                                {earnedPoints} / {q.points} Pkt
                                             </span>
-                                        )) : (
-                                            <span style={{ color: '#ff4757', fontSize: '12px', fontStyle: 'italic' }}>Keine Antwort gegeben</span>
+                                        )}
+                                    </div>
+                                    <div className="tuner-exam-answer-tags" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                            {currentAnswers.length > 0 ? currentAnswers.map((ans, i) => {
+                                                let bgColor = 'var(--bg-elevated)';
+                                                let borderColor = 'var(--border)';
+                                                if (q.correctAnswers && q.correctAnswers.length > 0) {
+                                                    if (q.correctAnswers.includes(ans)) {
+                                                        bgColor = 'rgba(46, 213, 115, 0.15)'; // Green
+                                                        borderColor = 'rgba(46, 213, 115, 0.4)';
+                                                    } else {
+                                                        bgColor = 'rgba(255, 71, 87, 0.15)'; // Red
+                                                        borderColor = 'rgba(255, 71, 87, 0.4)';
+                                                    }
+                                                }
+
+                                                return (
+                                                    <span key={i} className="tuner-exam-answer-tag" style={{ background: bgColor, padding: '4px 8px', borderRadius: '4px', fontSize: '12px', border: `1px solid ${borderColor}` }}>
+                                                        {ans}
+                                                    </span>
+                                                )
+                                            }) : (
+                                                <span style={{ color: '#ff4757', fontSize: '12px', fontStyle: 'italic' }}>Keine Antwort gegeben</span>
+                                            )}
+                                        </div>
+
+                                        {/* Show missing correct answers if any */}
+                                        {q.correctAnswers && q.correctAnswers.length > 0 && !isFullyCorrect && (
+                                            <div style={{ marginTop: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                                                <strong>Richtige Antwort(en):</strong>
+                                                <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+                                                    {q.correctAnswers.map((ca, i) => (
+                                                        <li key={i} style={{ color: '#2ed573' }}>{ca}</li>
+                                                    ))}
+                                                </ul>
+                                            </div>
                                         )}
                                     </div>
                                 </div>

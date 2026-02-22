@@ -20,6 +20,7 @@ interface Question {
     points: number;
     options: Option[];
     image?: string;
+    correctAnswers?: string[];
 }
 
 export const EXAM_QUESTIONS: Question[] = [
@@ -37,6 +38,7 @@ export const EXAM_QUESTIONS: Question[] = [
             { text: 'Abmeldung aus dem Dienst beim Verlassen des Dienstes' },
             { text: 'Tragen einer Waffe während des Dienstes' },
         ],
+        correctAnswers: ['Funkpflicht', 'Außendienst / Durchführung von Reparaturen', 'Abmeldung aus dem Dienst beim Verlassen des Dienstes']
     },
     {
         id: 'q2',
@@ -48,6 +50,7 @@ export const EXAM_QUESTIONS: Question[] = [
             { text: '5.000$' }, { text: 'Gratis' }, { text: '2.500$' },
             { text: '2.000$' }, { text: '1.000$' }, { text: '1.500$' },
         ],
+        correctAnswers: ['Gratis', '2.000$'] // Note user input says gratis + 2000
     },
     {
         id: 'q3',
@@ -71,6 +74,7 @@ export const EXAM_QUESTIONS: Question[] = [
             { text: '130.000$' }, { text: '100.000$' }, { text: '50.000$' }, { text: '25.000$' },
             { text: 'Es gibt keine wöchentliche Abgabe.' }
         ],
+        correctAnswers: ['150.000$']
     },
     {
         id: 'q5',
@@ -86,6 +90,7 @@ export const EXAM_QUESTIONS: Question[] = [
             { text: 'Den Kunden anschreien' },
             { text: 'Ein Mitglied der Führungs- oder Leitungsebene hinzuziehen' },
         ],
+        correctAnswers: ['Das LSPD verständigen', 'Ein Hausverbot aussprechen', 'Ein Mitglied der Führungs- oder Leitungsebene hinzuziehen']
     },
     {
         id: 'q6',
@@ -111,6 +116,7 @@ export const EXAM_QUESTIONS: Question[] = [
             { text: 'Alle Fahrzeuge reparieren, die sich bei der Werkstatt befinden' },
             { text: 'Über Funk mitteilen, dass man den Dienst verlässt' },
         ],
+        correctAnswers: ['Den Dienst verlassen', 'Die Dienstkleidung ausziehen', 'Über Funk mitteilen, dass man den Dienst verlässt']
     },
     {
         id: 'q8',
@@ -169,6 +175,7 @@ export const EXAM_QUESTIONS: Question[] = [
         options: [
             { text: 'Ja' }, { text: 'Ja, aber nur mit Genehmigung der Nagata-Leitungsebene' }, { text: 'Nein' }
         ],
+        correctAnswers: ['Ja, aber nur mit Genehmigung der Nagata-Leitungsebene']
     },
     {
         id: 'q13',
@@ -186,6 +193,7 @@ export const EXAM_QUESTIONS: Question[] = [
             { text: 'Dieser Ort ist für nichts Bestimmtes vorgesehen' },
             { text: 'Parkverbot / Halteverbot' }
         ],
+        correctAnswers: ['Parkplatz für Dienstfahrzeuge', 'Kundenparkplatz', 'Mitarbeiterparkplatz']
     },
     {
         id: 'q14',
@@ -204,6 +212,7 @@ export const EXAM_QUESTIONS: Question[] = [
             { text: 'Dieser Ort ist für nichts Bestimmtes vorgesehen' },
             { text: 'Parkverbot / Halteverbot' }
         ],
+        correctAnswers: ['Parkverbot / Halteverbot']
     },
     {
         id: 'q15',
@@ -222,6 +231,7 @@ export const EXAM_QUESTIONS: Question[] = [
             { text: 'Dieser Ort ist für nichts Bestimmtes vorgesehen' },
             { text: 'Parkverbot / Halteverbot' }
         ],
+        correctAnswers: ['Parkplatz für den Abschlepper']
     },
     {
         id: 'q16',
@@ -241,6 +251,7 @@ export const EXAM_QUESTIONS: Question[] = [
             { text: 'Parkverbot / Halteverbot' },
             { text: 'Hier dürfen ausschließlich der Jester, der GTR und der NSX abgestellt werden' }
         ],
+        correctAnswers: ['Dienstparkplatz (ausschließlich Dienstfahrzeuge)', 'Dienstparkplatz (Dienstfahrzeuge und Fahrzeuge der Leitungsebene)']
     },
     {
         id: 'q17',
@@ -273,6 +284,7 @@ export const EXAM_QUESTIONS: Question[] = [
             { text: 'Boote, Uboote und Jetskis' },
             { text: 'Alles' }
         ],
+        correctAnswers: ['LKWs, Sattelschlepper und Busse']
     },
     {
         id: 'q19',
@@ -289,6 +301,7 @@ export const EXAM_QUESTIONS: Question[] = [
             { text: 'Boote, Uboote und Jetskis' },
             { text: 'Alles' }
         ],
+        correctAnswers: ['Helikopter']
     },
     {
         id: 'q20',
@@ -305,6 +318,7 @@ export const EXAM_QUESTIONS: Question[] = [
             { text: 'Boote, Uboote und Jetskis' },
             { text: 'Alles' }
         ],
+        correctAnswers: ['Flugzeuge']
     },
     {
         id: 'q21',
@@ -321,6 +335,7 @@ export const EXAM_QUESTIONS: Question[] = [
             { text: 'Boote, Uboote und Jetskis' },
             { text: 'Alles' }
         ],
+        correctAnswers: ['Boote, Uboote und Jetskis']
     },
     {
         id: 'q22',
@@ -333,6 +348,7 @@ export const EXAM_QUESTIONS: Question[] = [
             { text: 'Als Zivilist' }, { text: 'Als Mitarbeiter' },
             { text: 'Als Führungsebene' }, { text: 'Als Leitungsebene' }
         ],
+        correctAnswers: [] // "Wann darfst du Schwarz tragen?" No clear correct answer in dump, assuming blank.
     },
     {
         id: 'q23',
@@ -345,6 +361,7 @@ export const EXAM_QUESTIONS: Question[] = [
             { text: 'Als Zivilist' }, { text: 'Als Mitarbeiter' },
             { text: 'Als Führungsebene' }, { text: 'Als Leitungsebene' }
         ],
+        correctAnswers: ['Als Mitarbeiter']
     },
     {
         id: 'q24',
@@ -357,6 +374,7 @@ export const EXAM_QUESTIONS: Question[] = [
             { text: 'Im Dienst' }, { text: 'Im Außendienst' }, { text: 'Als Zivilist' },
             { text: 'Als Mitarbeiter' }, { text: 'Als Führungsebene' }, { text: 'Als Leitungsebene' }
         ],
+        correctAnswers: ['Als Zivilist']
     }
 ];
 
