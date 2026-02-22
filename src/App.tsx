@@ -12,7 +12,7 @@ import './App.css';
 
 function AppInner() {
   const { state, logout, toasts, dismissToast } = useApp();
-  const { bg, changeBg } = useBackground();
+  const { bg, changeBg } = useBackground(state.currentUser?.id);
   const [currentView, setCurrentView] = useState<'board' | 'admin'>('board');
   const searchParams = new URLSearchParams(window.location.search);
   const authError = searchParams.get('error');

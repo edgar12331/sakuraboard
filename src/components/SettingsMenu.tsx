@@ -1,8 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Settings, X, Image, Sparkles } from 'lucide-react';
 
-const BG_STORAGE_KEY = 'sakura_bg_setting';
-
 interface BgOption {
     id: string;
     label: string;
@@ -16,26 +14,30 @@ const BG_PRESETS: BgOption[] = [
     { id: 'bg2', label: 'Sakura Bloom', preview: '/backgrounds/bg2.webp', value: '/backgrounds/bg2.webp' },
 ];
 
-function getSavedBg(): string {
+function getBgStorageKey(userId: string | undefined): string {
+    return userId ? `sakura_bg_setting_${userId}` : 'sakura_bg_setting';
+}
+
+function getSavedBg(userId: string | undefined): string {
     try {
-        return localStorage.getItem(BG_STORAGE_KEY) || '';
+        return localStorage.getItem(getBgStorageKey(userId)) || '';
     } catch {
         return '';
     }
 }
 
-function saveBg(value: string) {
+function saveBg(value: string, userId: string | undefined) {
     try {
-        localStorage.setItem(BG_STORAGE_KEY, value);
+        localStorage.setItem(getBgStorageKey(userId), value);
     } catch { /* ignore */ }
 }
 
-export function useBackground() {
-    const [bg, setBg] = useState(getSavedBg);
+export function useBackground(userId: string | undefined) {
+    const [bg, setBg] = useState(() => getSavedBg(userId));
 
     const changeBg = (value: string) => {
         setBg(value);
-        saveBg(value);
+        saveBg(value, userId);
     };
 
     return { bg, changeBg };
@@ -95,10 +97,21 @@ export function SettingsMenu({ bg, onChangeBg }: SettingsMenuProps) {
                                 }}>
                                     <Sparkles size={18} color="var(--sakura-400)" />
                                 </div>
-                                <h2 style={{ fontSize: '18px', fontWeight: 700 }}>Einstellungen</h2>
+                                <h2 style={{ fontSize: '18px', fontWeight: 700 }}>Persönliche Einstellungen</h2>
                             </div>
-                            <button className="btn btn-ghost btn-icon" onClick={() => setOpen(false)}>
-                                <X size={18} />
+                            <button 
+                                className="btn btn-ghost btn-icon" 
+                                onClick={() => setOpen(false)}
+                                title="Schließen (ESC)"
+                                style={{ 
+                                    width: '36px', 
+                                    height: '36px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                }}
+                            >
+                                <X size={20} />
                             </button>
                         </div>
 
@@ -159,10 +172,34 @@ export function SettingsMenu({ bg, onChangeBg }: SettingsMenuProps) {
                             </div>
                         )}
 
-                        <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
-                            <button className="btn btn-primary" onClick={() => setOpen(false)} style={{ gap: '6px' }}>
-                                Zurück zum Board
+                        <div style={{ 
+                            marginTop: '24px', 
+                            paddingTop: '20px', 
+                            borderTop: '1px solid var(--border)', 
+                            display: 'flex', 
+                            flexDirection: 'column',
+                            gap: '8px',
+                            alignItems: 'center'
+                        }}>
+                            <button 
+                                className="btn btn-primary" 
+                                onClick={() => setOpen(false)} 
+                                style={{ 
+                                    gap: '6px',
+                                    padding: '10px 24px',
+                                    fontSize: '14px',
+                                    fontWeight: 600
+                                }}
+                            >
+                                ✓ Zurück zum Board
                             </button>
+                            <p style={{ 
+                                fontSize: '11px', 
+                                color: 'var(--text-muted)',
+                                margin: 0
+                            }}>
+                                ESC drücken oder außerhalb klicken zum Schließen
+                            </p>
                         </div>
                     </div>
                 </div>
