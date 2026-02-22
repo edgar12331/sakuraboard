@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Settings, X, Image, Sparkles } from 'lucide-react';
 
 const BG_STORAGE_KEY = 'sakura_bg_setting';
@@ -13,6 +13,7 @@ interface BgOption {
 const BG_PRESETS: BgOption[] = [
     { id: 'none', label: 'Keine (Standard)', preview: '', value: '' },
     { id: 'bg1', label: 'Sakura Night', preview: '/backgrounds/bg1.webp', value: '/backgrounds/bg1.webp' },
+    { id: 'bg2', label: 'Sakura Bloom', preview: '/backgrounds/bg2.webp', value: '/backgrounds/bg2.webp' },
 ];
 
 function getSavedBg(): string {
@@ -48,6 +49,14 @@ interface SettingsMenuProps {
 export function SettingsMenu({ bg, onChangeBg }: SettingsMenuProps) {
     const [open, setOpen] = useState(false);
     const fileRef = useRef<HTMLInputElement>(null);
+
+    // ESC key to close
+    useEffect(() => {
+        if (!open) return;
+        const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+        window.addEventListener('keydown', handleKey);
+        return () => window.removeEventListener('keydown', handleKey);
+    }, [open]);
 
     const handleCustomUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -149,6 +158,12 @@ export function SettingsMenu({ bg, onChangeBg }: SettingsMenuProps) {
                                 </div>
                             </div>
                         )}
+
+                        <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
+                            <button className="btn btn-primary" onClick={() => setOpen(false)} style={{ gap: '6px' }}>
+                                Zurück zum Board
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
