@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { LayoutDashboard, Settings, LogOut } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
@@ -9,11 +10,23 @@ interface NavbarProps {
 export function Navbar({ currentView, onViewChange }: NavbarProps) {
     const { state, isAdmin, logout } = useApp();
     const user = state.currentUser;
+    const [menuOpen, setMenuOpen] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
 
     // Build Discord avatar URL
     const avatarUrl = user?.id && user?.avatar
         ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=64`
         : null;
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                setMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     return (
         <nav className="navbar">
@@ -48,8 +61,8 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
             </div>
 
             <div className="navbar-right">
-                <div className="user-menu-wrapper">
-                    <div className="user-menu-trigger">
+                <div className="user-menu-wrapper" ref={menuRef}>
+                    <button className="user-menu-trigger" onClick={() => setMenuOpen(v => !v)}>
                         {avatarUrl ? (
                             <img
                                 src={avatarUrl}
@@ -69,10 +82,15 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
                                 {user?.role}
                             </span>
                         </div>
-                    </div>
-                    <button className="btn btn-secondary" style={{ marginLeft: '8px', display: 'flex', alignItems: 'center', gap: '6px' }} onClick={logout}>
-                        <LogOut size={14} /> Abmelden
                     </button>
+                    {menuOpen && (
+                        <div className="dropdown-menu">
+                            <div className="dropdown-header">Account</div>
+                            <button className="dropdown-item" onClick={() => { setMenuOpen(false); logout(); }}>
+                                <LogOut size={14} /> Abmelden
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </nav>
