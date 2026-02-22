@@ -114,10 +114,15 @@ export function TunerExamAdmin() {
 
                             return (
                                 <div key={q.id} className="tuner-exam-answers-box" style={{ padding: '12px', background: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                                    <div className="tuner-exam-answer-label" style={{ fontWeight: '600', marginBottom: '8px', color: 'var(--text-primary)', display: 'flex', justifyContent: 'space-between' }}>
-                                        <span>{idx + 1}. {q.text}</span>
+                                    <div className="tuner-exam-answer-label" style={{ fontWeight: '600', marginBottom: '8px', color: 'var(--text-primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                            <span>{idx + 1}. {q.text}</span>
+                                            {q.image && (
+                                                <img src={q.image} alt={`Bild zu Frage ${idx + 1}`} style={{ maxWidth: '300px', borderRadius: '4px', border: '1px solid var(--border)' }} />
+                                            )}
+                                        </div>
                                         {q.correctAnswers && q.correctAnswers.length > 0 && (
-                                            <span style={{ fontSize: '12px', fontWeight: 'bold', color: isFullyCorrect ? '#2ed573' : isPartiallyCorrect ? '#ffa502' : '#ff4757', marginLeft: '12px' }}>
+                                            <span style={{ fontSize: '12px', fontWeight: 'bold', color: isFullyCorrect ? '#2ed573' : isPartiallyCorrect ? '#ffa502' : '#ff4757', marginLeft: '12px', whiteSpace: 'nowrap' }}>
                                                 {earnedPoints} / {q.points} Pkt
                                             </span>
                                         )}
