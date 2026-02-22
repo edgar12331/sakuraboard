@@ -15,7 +15,7 @@ interface BoardColumnProps {
 }
 
 const COLUMN_COLORS = [
-    '#ff6b9d', '#ffa4c4', '#c9b8f5', '#7bed9f', 
+    '#ff6b9d', '#ffa4c4', '#c9b8f5', '#7bed9f',
     '#70a1ff', '#eccc68', '#ff7675', '#74b9ff',
     '#a29bfe', '#fd79a8', '#fdcb6e', '#6c5ce7'
 ];
@@ -85,7 +85,7 @@ export function BoardColumn({ column, onEditCard, onAddCard, filterCardIds, drag
                         <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>
                             FARBE
                         </label>
-                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
                             {COLUMN_COLORS.map(color => (
                                 <button
                                     key={color}
@@ -103,6 +103,14 @@ export function BoardColumn({ column, onEditCard, onAddCard, filterCardIds, drag
                                     title={color}
                                 />
                             ))}
+                            <div style={{ width: '1px', height: '20px', background: 'var(--border)', margin: '0 4px' }} />
+                            <input
+                                type="color"
+                                value={editColor}
+                                onChange={e => setEditColor(e.target.value)}
+                                style={{ width: '28px', height: '28px', padding: 0, border: 'none', borderRadius: '6px', cursor: 'pointer', background: 'transparent' }}
+                                title="Eigene Farbe wählen"
+                            />
                         </div>
                     </div>
                     <div className="flex gap-2">

@@ -272,7 +272,7 @@ export function AdminPanel() {
                                     onKeyDown={e => e.key === 'Enter' && handleAddTag()}
                                     autoFocus
                                 />
-                                <div className="color-picker">
+                                <div className="color-picker" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
                                     {TAG_COLORS.map(c => (
                                         <button
                                             key={c}
@@ -281,6 +281,14 @@ export function AdminPanel() {
                                             onClick={() => setNewTagColor(c)}
                                         />
                                     ))}
+                                    <div style={{ width: '1px', height: '20px', background: 'var(--border)', margin: '0 4px' }} />
+                                    <input
+                                        type="color"
+                                        value={newTagColor}
+                                        onChange={e => setNewTagColor(e.target.value)}
+                                        style={{ width: '28px', height: '28px', padding: 0, border: 'none', borderRadius: '4px', cursor: 'pointer', background: 'transparent' }}
+                                        title="Eigene Farbe wählen"
+                                    />
                                 </div>
                                 <div className="flex gap-2">
                                     <button className="btn btn-primary btn-sm" onClick={handleAddTag}><Check size={13} /> Hinzufügen</button>
@@ -300,7 +308,7 @@ export function AdminPanel() {
                                                 value={editingTag.name}
                                                 onChange={e => setEditingTag({ ...editingTag, name: e.target.value })}
                                             />
-                                            <div className="color-picker">
+                                            <div className="color-picker" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
                                                 {TAG_COLORS.map(c => (
                                                     <button
                                                         key={c}
@@ -309,6 +317,14 @@ export function AdminPanel() {
                                                         onClick={() => setEditingTag({ ...editingTag, color: c })}
                                                     />
                                                 ))}
+                                                <div style={{ width: '1px', height: '20px', background: 'var(--border)', margin: '0 4px' }} />
+                                                <input
+                                                    type="color"
+                                                    value={editingTag.color}
+                                                    onChange={e => setEditingTag({ ...editingTag, color: e.target.value })}
+                                                    style={{ width: '28px', height: '28px', padding: 0, border: 'none', borderRadius: '4px', cursor: 'pointer', background: 'transparent' }}
+                                                    title="Eigene Farbe wählen"
+                                                />
                                             </div>
                                             <button className="btn btn-primary btn-sm" onClick={handleUpdateTag}><Check size={13} /></button>
                                             <button className="btn btn-secondary btn-sm" onClick={() => setEditingTag(null)}><X size={13} /></button>

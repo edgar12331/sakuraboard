@@ -13,6 +13,7 @@ export function Board() {
     const [editingCard, setEditingCard] = useState<Card | null>(null);
     const [addingCard, setAddingCard] = useState<{ columnId: string } | null>(null);
     const [newColTitle, setNewColTitle] = useState('');
+    const [newColColor, setNewColColor] = useState('#ff6b9d');
     const [showNewCol, setShowNewCol] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -42,17 +43,17 @@ export function Board() {
 
     const handleAddColumn = () => {
         if (!newColTitle.trim()) return;
-        const colors = ['#ff6b9d', '#ffa4c4', '#c9b8f5', '#7bed9f', '#70a1ff', '#eccc68'];
         dispatch({
             type: 'ADD_COLUMN',
             column: {
                 id: uuidv4(),
                 title: newColTitle.trim(),
-                color: colors[Math.floor(Math.random() * colors.length)],
+                color: newColColor,
                 cardIds: [],
             },
         });
         setNewColTitle('');
+        setNewColColor('#ff6b9d');
         setShowNewCol(false);
     };
 
@@ -126,9 +127,41 @@ export function Board() {
                                                 onKeyDown={e => e.key === 'Enter' && handleAddColumn()}
                                                 autoFocus
                                             />
+                                            <div style={{ marginTop: '10px' }}>
+                                                <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>
+                                                    FARBE
+                                                </label>
+                                                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                                                    {['#ff6b9d', '#ffa4c4', '#c9b8f5', '#7bed9f', '#70a1ff', '#eccc68'].map(color => (
+                                                        <button
+                                                            key={color}
+                                                            onClick={() => setNewColColor(color)}
+                                                            style={{
+                                                                width: '28px',
+                                                                height: '28px',
+                                                                borderRadius: '6px',
+                                                                background: color,
+                                                                border: newColColor === color ? '3px solid var(--bg-card)' : '2px solid var(--border)',
+                                                                boxShadow: newColColor === color ? '0 0 0 2px ' + color : 'none',
+                                                                cursor: 'pointer',
+                                                                transition: 'all 0.2s',
+                                                            }}
+                                                            title={color}
+                                                        />
+                                                    ))}
+                                                    <div style={{ width: '1px', height: '20px', background: 'var(--border)', margin: '0 4px' }} />
+                                                    <input
+                                                        type="color"
+                                                        value={newColColor}
+                                                        onChange={e => setNewColColor(e.target.value)}
+                                                        style={{ width: '28px', height: '28px', padding: 0, border: 'none', borderRadius: '6px', cursor: 'pointer', background: 'transparent' }}
+                                                        title="Eigene Farbe wählen"
+                                                    />
+                                                </div>
+                                            </div>
                                             <div className="flex gap-2 mt-2">
                                                 <button className="btn btn-primary btn-sm" onClick={handleAddColumn}>Hinzufügen</button>
-                                                <button className="btn btn-secondary btn-sm" onClick={() => setShowNewCol(false)}>Abbrechen</button>
+                                                <button className="btn btn-secondary btn-sm" onClick={() => { setShowNewCol(false); setNewColTitle(''); setNewColColor('#ff6b9d'); }}>Abbrechen</button>
                                             </div>
                                         </div>
                                     ) : (
