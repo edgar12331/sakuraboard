@@ -460,7 +460,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return () => clearInterval(interval);
     }, [fetchBoard]);
 
-    const checkAuth = async () => {
+    const logout = useCallback(async () => {
+        try {
+            await axios.post(`${API_URL}/auth/logout`);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            isAuthenticatedRef.current = false;
+            clearToken();
+            clearBoardCache();
+            clearPendingCache();
+            setCurrentUser(null);
+            window.location.href = '/';
+        }
+    }, []);
+
+    const checkAuth = useCallback(async () => {
         // Read token from URL after Discord OAuth redirect
         const urlParams = new URLSearchParams(window.location.search);
         const urlToken = urlParams.get('token');
@@ -476,11 +491,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
         try {
             const res = await axios.get(`${API_URL}/users/me`, { timeout: 8000 });
+            
+            // Check if user lost access - status changed to pending
+            if (currentUser && currentUser.status === 'approved' && res.data.status === 'pending') {
+                notify('Dein Zugriff wurde widerrufen. Bitte kontaktiere einen Administrator.', 'error');
+                setTimeout(() => {
+                    logout();
+                }, 2000);
+                return;
+            }
+            
             setCurrentUser(res.data);
             if (res.data.status === 'approved') {
                 isAuthenticatedRef.current = true;
                 fetchUsers();
                 fetchBoard();
+            } else if (res.data.status === 'pending' && isAuthenticatedRef.current) {
+                // User was approved but now is pending - logout
+                notify('Dein Zugriff wurde entfernt. Du wirst abgemeldet.', 'error');
+                setTimeout(() => {
+                    logout();
+                }, 2000);
             }
         } catch (err: any) {
             if (err?.response?.status === 401 || err?.response?.status === 403) {
@@ -490,7 +521,41 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [currentUser, notify, logout, fetchBoard]);
+
+    // Authenticate user on load
+    useEffect(() => {
+        checkAuth();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Periodically check user status (every 5 minutes)
+    useEffect(() => {
+        if (!currentUser || currentUser.status !== 'approved') return;
+        
+        const checkUserStatus = async () => {
+            try {
+                const res = await axios.get(`${API_URL}/users/me`);
+                
+                // If status changed from approved to pending, logout
+                if (res.data.status === 'pending' && currentUser.status === 'approved') {
+                    notify('Du hast keine Discord-Rollen mehr für den Zugriff auf das Board. Du wirst abgemeldet.', 'error');
+                    setTimeout(() => {
+                        logout();
+                    }, 3000);
+                }
+            } catch (err: any) {
+                if (err?.response?.status === 401 || err?.response?.status === 403) {
+                    // Token invalid - logout
+                    logout();
+                }
+            }
+        };
+
+        // Check every 5 minutes
+        const interval = setInterval(checkUserStatus, 5 * 60 * 1000);
+        return () => clearInterval(interval);
+    }, [currentUser, notify, logout]);
 
     const fetchUsers = async () => {
         try {
@@ -511,21 +576,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             setUsers(mapped);
         } catch (err) {
             console.error('Could not load users');
-        }
-    };
-
-    const logout = async () => {
-        try {
-            await axios.post(`${API_URL}/auth/logout`);
-        } catch (error) {
-            console.error(error);
-        } finally {
-            isAuthenticatedRef.current = false;
-            clearToken();
-            clearBoardCache();
-            clearPendingCache();
-            setCurrentUser(null);
-            window.location.href = '/';
         }
     };
 

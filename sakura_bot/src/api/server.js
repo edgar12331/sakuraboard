@@ -159,24 +159,80 @@ export function startApiServer(discordClient) {
         }
     });
 
-    // 3. Get Current User
-    app.get('/api/users/me', authenticateToken, async (req, res) => {
-        // Refresh status from DB
+    // Helper function to check current Discord roles
+    async function checkUserRolesAndUpdateStatus(userId) {
         try {
-            const [rows] = await pool.execute('SELECT website_role, status, discord_roles FROM website_users WHERE user_id = ?', [req.user.id]);
-            if (rows.length === 0) return res.status(404).json({ error: 'User not found in db' });
+            // Fetch current roles from Discord
+            const memberResponse = await axios.get(
+                `https://discord.com/api/guilds/${GUILD_ID}/members/${userId}`,
+                { headers: { Authorization: `Bot ${BOT_TOKEN}` } }
+            );
+            const currentRoles = memberResponse.data.roles || [];
+            const hasAdminRole = currentRoles.some(role => ADMIN_ROLES.includes(role));
 
-            const userDb = rows[0];
+            // Get user from database
+            const [rows] = await pool.execute('SELECT * FROM website_users WHERE user_id = ?', [userId]);
+            if (rows.length === 0) return null;
 
-            // Update the user object with latest db info
+            const user = rows[0];
+            let newStatus = user.status;
+            let newRole = user.website_role;
+
+            // If user lost admin roles and was auto-approved as admin
+            if (!hasAdminRole && user.status === 'approved' && user.website_role === 'admin') {
+                newStatus = 'pending';
+                newRole = 'viewer';
+            }
+
+            // Update database if status changed
+            if (newStatus !== user.status || newRole !== user.website_role) {
+                await pool.execute(
+                    'UPDATE website_users SET status = ?, website_role = ?, discord_roles = ? WHERE user_id = ?',
+                    [newStatus, newRole, JSON.stringify(currentRoles), userId]
+                );
+            } else {
+                // Just update roles
+                await pool.execute(
+                    'UPDATE website_users SET discord_roles = ? WHERE user_id = ?',
+                    [JSON.stringify(currentRoles), userId]
+                );
+            }
+
+            return { ...user, status: newStatus, website_role: newRole, discord_roles: currentRoles };
+        } catch (err) {
+            // User not in guild anymore (left server or kicked)
+            if (err.response?.status === 404) {
+                await pool.execute(
+                    'UPDATE website_users SET status = ?, website_role = ?, discord_roles = ? WHERE user_id = ?',
+                    ['pending', 'viewer', JSON.stringify([]), userId]
+                );
+                return { status: 'pending', website_role: 'viewer', discord_roles: [] };
+            }
+            throw err;
+        }
+    }
+
+    // 3. Get Current User (with automatic role verification)
+    app.get('/api/users/me', authenticateToken, async (req, res) => {
+        try {
+            // Check and update user's current Discord roles
+            const updatedUser = await checkUserRolesAndUpdateStatus(req.user.id);
+            
+            if (!updatedUser) {
+                return res.status(404).json({ error: 'User not found in db' });
+            }
+
+            // Return updated user data
             const userData = {
                 ...req.user,
-                role: userDb.website_role,
-                status: userDb.status,
+                role: updatedUser.website_role,
+                status: updatedUser.status,
+                memberRoles: updatedUser.discord_roles,
             };
 
             res.json(userData);
         } catch (err) {
+            console.error('Error checking user status:', err);
             res.status(500).json({ error: 'Database error' });
         }
     });
@@ -187,6 +243,30 @@ export function startApiServer(discordClient) {
     });
 
     // ─── ADMIN ROUTES ───
+    // Verify all users' Discord roles (periodic check)
+    app.post('/api/admin/verify-all-users', authenticateToken, async (req, res) => {
+        if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+        try {
+            const [rows] = await pool.execute('SELECT user_id FROM website_users');
+            const results = { updated: 0, errors: 0, total: rows.length };
+
+            for (const user of rows) {
+                try {
+                    await checkUserRolesAndUpdateStatus(user.user_id);
+                    results.updated++;
+                } catch (err) {
+                    console.error(`Failed to check user ${user.user_id}:`, err.message);
+                    results.errors++;
+                }
+            }
+
+            res.json({ success: true, results });
+        } catch (error) {
+            console.error('Verify all users error:', error);
+            res.status(500).json({ error: 'DB Error' });
+        }
+    });
+
     // Get all users
     app.get('/api/admin/users', authenticateToken, async (req, res) => {
         if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
