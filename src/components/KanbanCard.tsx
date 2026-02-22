@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Calendar, Image } from 'lucide-react';
 import type { Card, Tag, User } from '../types';
+import { ImageViewer } from './ImageViewer';
 
 interface KanbanCardProps {
     card: Card;
@@ -10,6 +11,7 @@ interface KanbanCardProps {
 }
 
 export const KanbanCard = React.memo(function KanbanCard({ card, tags, assignees, onClick }: KanbanCardProps) {
+    const [showImageViewer, setShowImageViewer] = useState(false);
     const isSpacer = /^--+$/.test(card.title.trim());
 
     if (isSpacer) {
@@ -24,12 +26,21 @@ export const KanbanCard = React.memo(function KanbanCard({ card, tags, assignees
     const isOverdue = card.dueDate && new Date(card.dueDate) < new Date();
 
     return (
-        <div className="kanban-card" onClick={onClick}>
-            {card.imageUrl && (
-                <div className="card-image-preview">
-                    <img src={card.imageUrl} alt="" />
-                </div>
-            )}
+        <>
+            <div className="kanban-card" onClick={onClick}>
+                {card.imageUrl && (
+                    <div 
+                        className="card-image-preview" 
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setShowImageViewer(true);
+                        }}
+                        style={{ cursor: 'pointer' }}
+                        title="Klicken für Vollbild"
+                    >
+                        <img src={card.imageUrl} alt="" />
+                    </div>
+                )}
 
             {tags.length > 0 && (
                 <div className="card-tags">
@@ -84,5 +95,10 @@ export const KanbanCard = React.memo(function KanbanCard({ card, tags, assignees
                 )}
             </div>
         </div>
+
+        {showImageViewer && card.imageUrl && (
+            <ImageViewer imageUrl={card.imageUrl} onClose={() => setShowImageViewer(false)} />
+        )}
+        </>
     );
 });

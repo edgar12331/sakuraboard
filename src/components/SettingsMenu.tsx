@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Settings, X, Image, Sparkles } from 'lucide-react';
 
 interface BgOption {
@@ -81,7 +82,7 @@ export function SettingsMenu({ bg, onChangeBg }: SettingsMenuProps) {
                 <Settings size={18} />
             </button>
 
-            {open && (
+            {open && createPortal(
                 <div className="modal-backdrop" onClick={() => setOpen(false)} style={{ padding: '20px', overflow: 'auto' }}>
                     <div
                         className="modal settings-modal"
@@ -211,7 +212,8 @@ export function SettingsMenu({ bg, onChangeBg }: SettingsMenuProps) {
                             </p>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </>
     );

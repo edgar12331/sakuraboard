@@ -4,6 +4,7 @@ import { X, Upload, Trash2, Calendar, User2, Tag, Lock, Eye, Edit3, Check } from
 import type { Card } from '../types';
 import { useApp } from '../context/AppContext';
 import { ConfirmDialog } from './ConfirmDialog';
+import { ImageViewer } from './ImageViewer';
 
 interface CardModalProps {
     card?: Card;
@@ -45,6 +46,7 @@ export function CardModal({ card, columnId, onClose }: CardModalProps) {
     const [activeTab, setActiveTab] = useState<'details' | 'access'>('details');
     const [imagePreview, setImagePreview] = useState<string>(card?.imageUrl ?? '');
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [showImageViewer, setShowImageViewer] = useState(false);
     const fileRef = useRef<HTMLInputElement>(null);
 
     const handleSave = () => {
@@ -130,7 +132,14 @@ export function CardModal({ card, columnId, onClose }: CardModalProps) {
                             {/* Image Preview */}
                             {imagePreview && (
                                 <div className="image-preview-container">
-                                    <img src={imagePreview} alt="Vorschau" className="image-preview" />
+                                    <img 
+                                        src={imagePreview} 
+                                        alt="Vorschau" 
+                                        className="image-preview"
+                                        onClick={() => setShowImageViewer(true)}
+                                        style={{ cursor: 'pointer' }}
+                                        title="Klicken für Vollbild"
+                                    />
                                     {editAllowed && (
                                         <button className="image-remove-btn" onClick={() => { setImageUrl(''); setImagePreview(''); }}>
                                             <X size={14} />
@@ -315,6 +324,10 @@ export function CardModal({ card, columnId, onClose }: CardModalProps) {
                     onConfirm={confirmDelete}
                     onCancel={() => setShowDeleteConfirm(false)}
                 />
+            )}
+
+            {showImageViewer && imagePreview && (
+                <ImageViewer imageUrl={imagePreview} onClose={() => setShowImageViewer(false)} />
             )}
         </div>
     );
