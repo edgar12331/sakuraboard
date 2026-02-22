@@ -281,14 +281,28 @@ export function AdminPanel() {
                                             onClick={() => setNewTagColor(c)}
                                         />
                                     ))}
-                                    <div style={{ width: '1px', height: '20px', background: 'var(--border)', margin: '0 4px' }} />
-                                    <input
-                                        type="color"
-                                        value={newTagColor}
-                                        onChange={e => setNewTagColor(e.target.value)}
-                                        style={{ width: '28px', height: '28px', padding: 0, border: 'none', borderRadius: '4px', cursor: 'pointer', background: 'transparent' }}
-                                        title="Eigene Farbe wählen"
-                                    />
+                                    <div style={{ width: '1px', height: '28px', background: 'var(--border)', margin: '0 8px' }} />
+                                    <div style={{ position: 'relative', height: '28px', display: 'flex', alignItems: 'center', background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: '6px', padding: '0 8px 0 4px', cursor: 'pointer' }} title="Eigene Farbe (Hex-Code)">
+                                        <div style={{
+                                            width: '20px', height: '20px', borderRadius: '50%', marginRight: '6px',
+                                            background: 'conic-gradient(#ff6b9d, #feca57, #1dd1a1, #5f27cd, #ff6b9d)',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            boxShadow: '0 1px 2px rgba(0,0,0,0.1)', pointerEvents: 'none'
+                                        }}>
+                                            <div style={{
+                                                width: '10px', height: '10px', borderRadius: '50%',
+                                                background: newTagColor, border: '1.5px solid white',
+                                                boxShadow: '0 1px 2px rgba(0,0,0,0.2)'
+                                            }} />
+                                        </div>
+                                        <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)' }}>Eigene</span>
+                                        <input
+                                            type="color"
+                                            value={newTagColor}
+                                            onChange={e => setNewTagColor(e.target.value)}
+                                            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
+                                        />
+                                    </div>
                                 </div>
                                 <div className="flex gap-2">
                                     <button className="btn btn-primary btn-sm" onClick={handleAddTag}><Check size={13} /> Hinzufügen</button>
@@ -317,14 +331,28 @@ export function AdminPanel() {
                                                         onClick={() => setEditingTag({ ...editingTag, color: c })}
                                                     />
                                                 ))}
-                                                <div style={{ width: '1px', height: '20px', background: 'var(--border)', margin: '0 4px' }} />
-                                                <input
-                                                    type="color"
-                                                    value={editingTag.color}
-                                                    onChange={e => setEditingTag({ ...editingTag, color: e.target.value })}
-                                                    style={{ width: '28px', height: '28px', padding: 0, border: 'none', borderRadius: '4px', cursor: 'pointer', background: 'transparent' }}
-                                                    title="Eigene Farbe wählen"
-                                                />
+                                                <div style={{ width: '1px', height: '28px', background: 'var(--border)', margin: '0 8px' }} />
+                                                <div style={{ position: 'relative', height: '28px', display: 'flex', alignItems: 'center', background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: '6px', padding: '0 8px 0 4px', cursor: 'pointer' }} title="Eigene Farbe (Hex-Code)">
+                                                    <div style={{
+                                                        width: '20px', height: '20px', borderRadius: '50%', marginRight: '6px',
+                                                        background: 'conic-gradient(#ff6b9d, #feca57, #1dd1a1, #5f27cd, #ff6b9d)',
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)', pointerEvents: 'none'
+                                                    }}>
+                                                        <div style={{
+                                                            width: '10px', height: '10px', borderRadius: '50%',
+                                                            background: editingTag.color, border: '1.5px solid white',
+                                                            boxShadow: '0 1px 2px rgba(0,0,0,0.2)'
+                                                        }} />
+                                                    </div>
+                                                    <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)' }}>Eigene</span>
+                                                    <input
+                                                        type="color"
+                                                        value={editingTag.color}
+                                                        onChange={e => setEditingTag({ ...editingTag, color: e.target.value })}
+                                                        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
+                                                    />
+                                                </div>
                                             </div>
                                             <button className="btn btn-primary btn-sm" onClick={handleUpdateTag}><Check size={13} /></button>
                                             <button className="btn btn-secondary btn-sm" onClick={() => setEditingTag(null)}><X size={13} /></button>

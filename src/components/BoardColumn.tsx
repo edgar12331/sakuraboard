@@ -103,14 +103,28 @@ export function BoardColumn({ column, onEditCard, onAddCard, filterCardIds, drag
                                     title={color}
                                 />
                             ))}
-                            <div style={{ width: '1px', height: '20px', background: 'var(--border)', margin: '0 4px' }} />
-                            <input
-                                type="color"
-                                value={editColor}
-                                onChange={e => setEditColor(e.target.value)}
-                                style={{ width: '28px', height: '28px', padding: 0, border: 'none', borderRadius: '6px', cursor: 'pointer', background: 'transparent' }}
-                                title="Eigene Farbe wählen"
-                            />
+                            <div style={{ width: '1px', height: '28px', background: 'var(--border)', margin: '0 8px' }} />
+                            <div style={{ position: 'relative', height: '28px', display: 'flex', alignItems: 'center', background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: '6px', padding: '0 8px 0 4px', cursor: 'pointer' }} title="Eigene Farbe (Hex-Code)">
+                                <div style={{
+                                    width: '20px', height: '20px', borderRadius: '50%', marginRight: '6px',
+                                    background: 'conic-gradient(#ff6b9d, #feca57, #1dd1a1, #5f27cd, #ff6b9d)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    boxShadow: '0 1px 2px rgba(0,0,0,0.1)', pointerEvents: 'none'
+                                }}>
+                                    <div style={{
+                                        width: '10px', height: '10px', borderRadius: '50%',
+                                        background: editColor, border: '1.5px solid white',
+                                        boxShadow: '0 1px 2px rgba(0,0,0,0.2)'
+                                    }} />
+                                </div>
+                                <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)' }}>Eigene</span>
+                                <input
+                                    type="color"
+                                    value={editColor}
+                                    onChange={e => setEditColor(e.target.value)}
+                                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
+                                />
+                            </div>
                         </div>
                     </div>
                     <div className="flex gap-2">
