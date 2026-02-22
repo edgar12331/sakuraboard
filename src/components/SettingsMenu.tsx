@@ -13,6 +13,7 @@ const BG_PRESETS: BgOption[] = [
     { id: 'none', label: 'Keine (Standard)', preview: '', value: '' },
     { id: 'bg1', label: 'Sakura Night', preview: '/backgrounds/bg1.webp', value: '/backgrounds/bg1.webp' },
     { id: 'bg2', label: 'Sakura Bloom', preview: '/backgrounds/bg2.webp', value: '/backgrounds/bg2.webp' },
+    { id: 'bg3', label: 'Sakura Dream', preview: '/backgrounds/bg3.webp', value: '/backgrounds/bg3.webp' },
 ];
 
 function getBgStorageKey(userId: string | undefined): string {
