@@ -66,28 +66,32 @@ export function TunerExamAdmin() {
     if (viewExam) {
         return (
             <div className="admin-section">
-                <div className="section-header flex justify-between items-center mb-6">
+                <div className="section-header" style={{ marginBottom: '24px' }}>
                     <div>
-                        <h2 className="section-title flex items-center gap-2">
+                        <h2 className="section-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             Zurücksetzen & Auswertung: {viewExam.username}
                         </h2>
-                        <p className="text-sm text-zinc-400">Ausbilder: {viewExam.ausbilder || 'Unbekannt'} | Eingereicht am: {format(new Date(viewExam.updated_at), 'dd.MM.yyyy HH:mm', { locale: de })}</p>
+                        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                            Ausbilder: {viewExam.ausbilder || 'Unbekannt'} | Eingereicht am: {format(new Date(viewExam.updated_at), 'dd.MM.yyyy HH:mm', { locale: de })}
+                        </p>
                     </div>
                     <button className="btn btn-secondary btn-sm" onClick={() => setViewExam(null)}>
-                        <X size={16} className="mr-2" /> Schließen
+                        <X size={16} style={{ marginRight: '8px' }} /> Schließen
                     </button>
                 </div>
 
-                <div className="surface p-6 mb-6">
-                    <h3 className="text-lg font-bold text-white mb-4 border-b border-zinc-800 pb-2">Gegebene Antworten</h3>
+                <div className="surface" style={{ padding: '24px', marginBottom: '24px' }}>
+                    <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px', paddingBottom: '8px', borderBottom: '1px solid var(--border)' }}>
+                        Gegebene Antworten
+                    </h3>
                     {viewExam.answers && Object.keys(viewExam.answers).length > 0 ? (
-                        <div className="space-y-4">
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                             {Object.entries(viewExam.answers).map(([qId, ansArray]) => (
-                                <div key={qId} className="bg-zinc-900 border border-zinc-800 p-4 rounded-lg">
-                                    <div className="text-xs text-sakura-400 font-mono mb-1">Frage {qId.replace('q', '')}</div>
-                                    <div className="flex flex-wrap gap-2 mt-2">
+                                <div key={qId} className="tuner-exam-answers-box">
+                                    <div className="tuner-exam-answer-label">Frage {qId.replace('q', '')}</div>
+                                    <div className="tuner-exam-answer-tags">
                                         {(ansArray as string[]).map((ans, i) => (
-                                            <span key={i} className="bg-zinc-800 text-zinc-300 px-3 py-1 rounded-md text-sm border border-zinc-700">
+                                            <span key={i} className="tuner-exam-answer-tag">
                                                 {ans}
                                             </span>
                                         ))}
@@ -96,7 +100,7 @@ export function TunerExamAdmin() {
                             ))}
                         </div>
                     ) : (
-                        <p className="text-zinc-500 italic">Keine Antworten gespeichert oder leere Abgabe.</p>
+                        <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Keine Antworten gespeichert oder leere Abgabe.</p>
                     )}
                 </div>
             </div>
@@ -105,100 +109,103 @@ export function TunerExamAdmin() {
 
     return (
         <div className="admin-section">
-            <div className="section-header flex justify-between items-center mb-6">
+            <div className="section-header" style={{ marginBottom: '24px' }}>
                 <div>
                     <h2 className="section-title">Tunerprüfung Verwaltung</h2>
-                    <p className="text-xs text-zinc-400 mt-1">Hier siehst du alle Anfragen und eingereichten Prüfungen.</p>
+                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>Hier siehst du alle Anfragen und eingereichten Prüfungen.</p>
                 </div>
                 <button className="btn btn-secondary btn-sm" onClick={fetchExams} disabled={isLoading}>
-                    <RefreshCw size={14} className={`mr-2 ${isLoading ? 'animate-spin' : ''}`} /> Aktualisieren
+                    <RefreshCw size={14} style={{ marginRight: '8px' }} className={isLoading ? 'animate-spin' : ''} /> Aktualisieren
                 </button>
             </div>
 
             {error && (
-                <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-lg flex items-center mb-6 text-sm">
-                    <AlertCircle size={16} className="mr-2" /> {error}
+                <div style={{ background: 'rgba(255, 71, 87, 0.1)', border: '1px solid rgba(255, 71, 87, 0.3)', color: '#ff4757', padding: '12px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', marginBottom: '24px', fontSize: '13px' }}>
+                    <AlertCircle size={16} style={{ marginRight: '8px' }} /> {error}
                 </div>
             )}
 
-            <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm text-zinc-300 border-collapse">
-                    <thead className="text-xs text-zinc-400 uppercase bg-zinc-900/50 border-b border-zinc-800">
+            <div className="tuner-admin-table-wrapper">
+                <table className="tuner-admin-table">
+                    <thead>
                         <tr>
-                            <th className="px-4 py-3 font-medium">Benutzer</th>
-                            <th className="px-4 py-3 font-medium">Status</th>
-                            <th className="px-4 py-3 font-medium">Letztes Update</th>
-                            <th className="px-4 py-3 font-medium text-right">Aktionen</th>
+                            <th>Benutzer</th>
+                            <th>Status</th>
+                            <th>Letztes Update</th>
+                            <th style={{ textAlign: 'right' }}>Aktionen</th>
                         </tr>
                     </thead>
                     <tbody>
                         {exams.length === 0 && !isLoading ? (
                             <tr>
-                                <td colSpan={4} className="px-4 py-8 text-center text-zinc-500">
+                                <td colSpan={4} style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--text-muted)' }}>
                                     Keine Prüfungsdatensätze gefunden.
                                 </td>
                             </tr>
                         ) : (
                             exams.map((exam) => (
-                                <tr key={exam.user_id} className="border-b border-zinc-800/50 bg-zinc-950/30 hover:bg-zinc-900/50 transition-colors">
-                                    <td className="px-4 py-3">
-                                        <div className="flex items-center gap-3">
+                                <tr key={exam.user_id}>
+                                    <td>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                             {exam.avatar ? (
-                                                <img src={`https://cdn.discordapp.com/avatars/${exam.user_id}/${exam.avatar}.png`} className="w-8 h-8 rounded-full bg-zinc-800" alt="" />
+                                                <img src={`https://cdn.discordapp.com/avatars/${exam.user_id}/${exam.avatar}.png`} style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--bg-elevated)' }} alt="" />
                                             ) : (
-                                                <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-400">
+                                                <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--bg-elevated)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 'bold' }}>
                                                     {exam.username.substring(0, 2).toUpperCase()}
                                                 </div>
                                             )}
                                             <div>
-                                                <div className="font-medium text-zinc-200">{exam.username}</div>
-                                                <div className="text-xs text-zinc-500 font-mono">{exam.user_id}</div>
+                                                <div style={{ fontWeight: '600' }}>{exam.username}</div>
+                                                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{exam.user_id}</div>
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="px-4 py-3">
+                                    <td>
                                         {exam.status === 'locked' && (
-                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-500 border border-red-500/20">
+                                            <span className="status-badge locked">
                                                 <Lock size={12} /> Gesperrt
                                             </span>
                                         )}
                                         {exam.status === 'unlocked' && (
-                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                                            <span className="status-badge unlocked">
                                                 <Unlock size={12} /> Schreibt...
                                             </span>
                                         )}
                                         {exam.status === 'submitted' && (
-                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                                            <span className="status-badge submitted">
                                                 <CheckCircle size={12} /> Abgegeben
                                             </span>
                                         )}
                                     </td>
-                                    <td className="px-4 py-3 text-zinc-400 whitespace-nowrap">
+                                    <td style={{ color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                                         {format(new Date(exam.updated_at), 'dd.MM.yy HH:mm')}
                                     </td>
-                                    <td className="px-4 py-3">
-                                        <div className="flex items-center justify-end gap-2">
+                                    <td>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
                                             {exam.status === 'locked' && (
                                                 <button
                                                     onClick={() => handleUnlock(exam.user_id, exam.username)}
-                                                    className="btn btn-primary btn-sm px-3"
+                                                    className="btn btn-primary btn-sm"
                                                     title="Prüfung freischalten"
                                                 >
-                                                    <Unlock size={14} className="mr-1.5" /> Freischalten
+                                                    <Unlock size={14} style={{ marginRight: '6px' }} /> Freischalten
                                                 </button>
                                             )}
                                             {exam.status === 'submitted' && (
                                                 <button
                                                     onClick={() => setViewExam(exam)}
-                                                    className="btn btn-secondary btn-sm px-3 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+                                                    className="btn btn-secondary btn-sm tuner-btn-success"
                                                     title="Antworten ansehen"
                                                 >
-                                                    <Eye size={14} className="mr-1.5" /> Auswerten
+                                                    <Eye size={14} style={{ marginRight: '6px' }} /> Auswerten
                                                 </button>
                                             )}
                                             <button
                                                 onClick={() => handleDelete(exam.user_id, exam.username)}
-                                                className="btn btn-danger btn-icon btn-sm opacity-50 hover:opacity-100"
+                                                className="btn btn-danger btn-icon btn-sm"
+                                                style={{ opacity: 0.6 }}
+                                                onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+                                                onMouseLeave={e => (e.currentTarget.style.opacity = '0.6')}
                                                 title="Datensatz löschen (Zurücksetzen)"
                                             >
                                                 <Trash2 size={14} />

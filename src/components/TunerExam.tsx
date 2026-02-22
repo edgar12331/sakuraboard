@@ -443,26 +443,29 @@ export function TunerExam({ logout }: TunerExamProps) {
 
     if (status === 'loading') {
         return (
-            <div className="flex flex-col h-screen w-full items-center justify-center bg-zinc-950 text-white z-10 relative">
-                <div className="sakura-spin text-sakura-400 mb-4 h-12 w-12 border-4 border-sakura-400 border-t-transparent rounded-full animate-spin"></div>
-                <p>Status wird geladen...</p>
+            <div className="login-screen">
+                <div className="login-box bg-transparent border-0 shadow-none text-center">
+                    <div className="sakura-spin text-sakura-400 mb-4 h-12 w-12 border-t-transparent rounded-full mx-auto" style={{ borderTopColor: 'transparent', borderRadius: '50%', width: 48, height: 48, border: '4px solid var(--sakura-400)' }}></div>
+                    <p>Status wird geladen...</p>
+                </div>
             </div>
         );
     }
 
     if (status === 'locked') {
         return (
-            <div className="flex flex-col h-screen w-full items-center justify-center bg-zinc-950 text-white z-10 relative p-6">
+            <div className="login-screen">
                 <motion.div
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-xl p-8 text-center shadow-2xl"
+                    className="login-box"
+                    style={{ textAlign: 'center' }}
                 >
-                    <div className="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <Lock size={32} className="text-sakura-400" />
+                    <div className="admin-icon" style={{ margin: '0 auto 24px' }}>
+                        <Lock size={32} />
                     </div>
-                    <h1 className="text-2xl font-bold mb-4">Prüfung gesperrt</h1>
-                    <p className="text-zinc-400 mb-8 leading-relaxed">
+                    <h1 className="login-title" style={{ fontSize: '24px' }}>Prüfung gesperrt</h1>
+                    <p className="login-subtitle" style={{ marginBottom: '32px' }}>
                         Deine Zugriffsanfrage wurde registriert. Bitte warte, bis ein Ausbilder oder Administrator deine Prüfung freischaltet.
                         <br /><br />
                         Diese Seite aktualisiert sich automatisch, sobald du freigeschaltet wurdest.
@@ -477,17 +480,18 @@ export function TunerExam({ logout }: TunerExamProps) {
 
     if (status === 'submitted') {
         return (
-            <div className="flex flex-col h-screen w-full items-center justify-center bg-zinc-950 text-white z-10 relative p-6">
+            <div className="login-screen">
                 <motion.div
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className="max-w-md w-full bg-zinc-900 border border-sakura-500/30 rounded-xl p-8 text-center shadow-2xl"
+                    className="login-box"
+                    style={{ textAlign: 'center', borderColor: 'rgba(46, 213, 115, 0.3)' }}
                 >
-                    <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <CheckCircle size={32} className="text-emerald-400" />
+                    <div className="admin-icon" style={{ margin: '0 auto 24px', background: 'rgba(46, 213, 115, 0.15)', color: '#2ed573' }}>
+                        <CheckCircle size={32} />
                     </div>
-                    <h1 className="text-2xl font-bold mb-4 text-emerald-400">Prüfung abgegeben!</h1>
-                    <p className="text-zinc-400 mb-8 leading-relaxed">
+                    <h1 className="login-title" style={{ fontSize: '24px', color: '#2ed573' }}>Prüfung abgegeben!</h1>
+                    <p className="login-subtitle" style={{ marginBottom: '32px' }}>
                         Herzlichen Glückwunsch, du hast die Tunerprüfung erfolgreich eingereicht!
                         Deine Antworten werden nun von den Ausbildern überprüft.
                     </p>
@@ -504,162 +508,146 @@ export function TunerExam({ logout }: TunerExamProps) {
     const sections = Array.from(new Set(EXAM_QUESTIONS.map(q => q.section)));
 
     return (
-        <div className="flex flex-col h-screen w-full bg-zinc-950 text-zinc-100 z-10 relative overflow-y-auto overflow-x-hidden">
-            <div className="max-w-4xl w-full mx-auto p-4 md:p-8">
+        <div className="exam-container">
+            <div className="exam-header-card">
+                <h1 className="exam-title">Tunerprüfung</h1>
+                <p className="exam-intro">
+                    Herzlich willkommen und herzlichen Glückwunsch, dass Sie es bis hierhin geschafft haben.
+                    <br /><br />
+                    Dieser Test dient der Überprüfung deiner allgemeinen Kompetenzen und soll dem Ausbilder eine fundierte Einschätzung ermöglichen, ob du für die Tätigkeit als Tuner geeignet bist.
+                    <br /><br />
+                    Um den Test erfolgreich zu bestehen, müssen mindestens <strong style={{ color: 'var(--sakura-400)' }}>34 von 38 Punkten</strong> erreicht werden.
+                </p>
 
-                {/* Header Section */}
-                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 md:p-10 mb-8 shadow-xl relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-sakura-400 via-rose-400 to-sakura-400"></div>
-                    <h1 className="text-4xl font-black tracking-tight mb-4 text-white">Tunerprüfung</h1>
-                    <p className="text-lg text-zinc-300 leading-relaxed mb-6">
-                        Herzlich willkommen und herzlichen Glückwunsch, dass Sie es bis hierhin geschafft haben.
-                        <br /><br />
-                        Dieser Test dient der Überprüfung deiner allgemeinen Kompetenzen und soll dem Ausbilder eine fundierte Einschätzung ermöglichen, ob du für die Tätigkeit als Tuner geeignet bist.
-                        <br /><br />
-                        Um den Test erfolgreich zu bestehen, müssen mindestens <strong className="text-sakura-300">34 von 38 Punkten</strong> erreicht werden.
-                    </p>
+                {errorMsg && (
+                    <div style={{ background: 'rgba(255, 71, 87, 0.1)', border: '1px solid rgba(255, 71, 87, 0.3)', color: '#ff4757', padding: '12px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px' }}>
+                        <AlertTriangle size={18} />
+                        <span>{errorMsg}</span>
+                    </div>
+                )}
 
-                    {errorMsg && (
-                        <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-lg flex items-start mb-6">
-                            <AlertTriangle className="mr-3 shrink-0 mt-0.5" size={18} />
-                            <span>{errorMsg}</span>
-                        </div>
-                    )}
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8 p-6 bg-black/20 rounded-lg border border-white/5">
-                        <div>
-                            <label className="block text-sm font-medium text-zinc-400 mb-2">Ihr Name (IC) <span className="text-red-400">*</span></label>
-                            <input
-                                type="text"
-                                value={charName}
-                                onChange={e => setCharName(e.target.value)}
-                                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-sakura-500 focus:ring-1 focus:ring-sakura-500 transition-colors"
-                                placeholder="Geben Sie Ihren Namen ein"
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-zinc-400 mb-2">Name des Ausbilders (IC) <span className="text-red-400">*</span></label>
-                            <input
-                                type="text"
-                                value={ausbilderName}
-                                onChange={e => setAusbilderName(e.target.value)}
-                                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-sakura-500 focus:ring-1 focus:ring-sakura-500 transition-colors"
-                                placeholder="Name des Prüfers"
-                                required
-                            />
-                        </div>
+                <div className="exam-user-info">
+                    <div className="form-group">
+                        <label className="form-label">Ihr Name (IC) <span style={{ color: '#ff4757' }}>*</span></label>
+                        <input
+                            type="text"
+                            value={charName}
+                            onChange={e => setCharName(e.target.value)}
+                            className="input"
+                            placeholder="Geben Sie Ihren Namen ein"
+                            required
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label">Name des Ausbilders (IC) <span style={{ color: '#ff4757' }}>*</span></label>
+                        <input
+                            type="text"
+                            value={ausbilderName}
+                            onChange={e => setAusbilderName(e.target.value)}
+                            className="input"
+                            placeholder="Name des Prüfers"
+                            required
+                        />
                     </div>
                 </div>
-
-                {/* Form Sections */}
-                <form onSubmit={handleSubmit}>
-                    {sections.map((section, sIdx) => (
-                        <div key={section} className="mb-12">
-                            <h2 className="text-2xl font-bold mb-6 flex items-center text-zinc-100 border-b border-zinc-800 pb-4">
-                                <span className="bg-sakura-500 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3 shadow-lg">{sIdx + 1}</span>
-                                {section}
-                            </h2>
-
-                            {section === 'Grundkompetenz' && (
-                                <p className="text-zinc-400 mb-6 bg-blue-500/10 border border-blue-500/20 p-4 rounded-lg">
-                                    <span className="font-semibold text-blue-300">Wichtig:</span> Bei einigen Fragen können mehrere Antwortmöglichkeiten korrekt sein.
-                                </p>
-                            )}
-
-                            <div className="space-y-8">
-                                {EXAM_QUESTIONS.filter(q => q.section === section).map((q) => (
-                                    <motion.div
-                                        key={q.id}
-                                        initial={{ opacity: 0, y: 20 }}
-                                        whileInView={{ opacity: 1, y: 0 }}
-                                        viewport={{ once: true, margin: "-100px" }}
-                                        className="bg-zinc-900 border border-zinc-800/80 rounded-xl p-6 shadow-md hover:border-zinc-700 transition-colors"
-                                    >
-                                        <div className="flex justify-between items-start mb-4">
-                                            <h3 className="text-lg font-medium text-white pr-4 leading-snug">
-                                                {q.text} <span className="text-red-400">*</span>
-                                            </h3>
-                                            <span className="shrink-0 text-xs font-semibold bg-zinc-800 text-zinc-300 px-3 py-1 rounded-full whitespace-nowrap">
-                                                {q.points} {q.points === 1 ? 'Punkt' : 'Punkte'}
-                                            </span>
-                                        </div>
-
-                                        {q.image && (
-                                            <div className="mb-6 rounded-lg overflow-hidden border border-zinc-800 max-w-2xl bg-zinc-950">
-                                                <img src={q.image} alt="Fragenbild" className="w-full object-contain max-h-96" />
-                                            </div>
-                                        )}
-
-                                        <div className="grid grid-cols-1 gap-3">
-                                            {q.options.map((opt, oIdx) => {
-                                                const isRadio = q.type === 'radio';
-                                                const isChecked = (answers[q.id] || []).includes(opt.text);
-
-                                                return (
-                                                    <label
-                                                        key={oIdx}
-                                                        className={`flex items-start p-3 rounded-lg border cursor-pointer transition-all duration-200 ${isChecked
-                                                            ? 'bg-sakura-500/10 border-sakura-500/50'
-                                                            : 'bg-zinc-950 border-zinc-800 hover:border-zinc-600'
-                                                            }`}
-                                                    >
-                                                        <div className="flex items-center h-5 mt-0.5">
-                                                            <input
-                                                                type={isRadio ? "radio" : "checkbox"}
-                                                                name={q.id}
-                                                                checked={isChecked}
-                                                                onChange={(e) => handleAnswerChange(q.id, opt.text, q.type, e.target.checked)}
-                                                                className={`
-                                                                    appearance-none w-5 h-5 border-2 rounded-sm border-zinc-600 bg-zinc-900 
-                                                                    checked:bg-sakura-500 checked:border-sakura-500 transition-all cursor-pointer
-                                                                    relative
-                                                                    ${isRadio ? 'rounded-full' : ''}
-                                                                `}
-                                                            />
-                                                        </div>
-                                                        <div className="ml-3 text-sm text-zinc-300 select-none">
-                                                            {opt.text}
-                                                        </div>
-                                                    </label>
-                                                )
-                                            })}
-                                        </div>
-                                    </motion.div>
-                                ))}
-                            </div>
-                        </div>
-                    ))}
-
-                    <div className="flex justify-between items-center bg-zinc-900 border border-zinc-800 p-6 rounded-xl mt-12 shadow-2xl sticky bottom-4 z-50">
-                        <button
-                            type="button"
-                            className="text-zinc-400 hover:text-white transition-colors"
-                            onClick={logout}
-                        >
-                            Abbrechen & Abmelden
-                        </button>
-
-                        <button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className={`btn btn-primary px-8 py-3 rounded-lg font-bold flex items-center shadow-lg shadow-sakura-500/20 ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}`}
-                        >
-                            {isSubmitting ? (
-                                <>
-                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-3"></div>
-                                    Einreichen...
-                                </>
-                            ) : (
-                                <>
-                                    <Save size={18} className="mr-2" />
-                                    Prüfung Abgeben
-                                </>
-                            )}
-                        </button>
-                    </div>
-                </form>
             </div>
+
+            <form onSubmit={handleSubmit}>
+                {sections.map((section, sIdx) => (
+                    <div key={section} className="exam-section">
+                        <div className="exam-section-title">
+                            <span className="exam-section-number">{sIdx + 1}</span>
+                            {section}
+                        </div>
+
+                        {section === 'Grundkompetenz' && (
+                            <div className="exam-note">
+                                <strong>Wichtig:</strong> Bei einigen Fragen können mehrere Antwortmöglichkeiten korrekt sein.
+                            </div>
+                        )}
+
+                        <div>
+                            {EXAM_QUESTIONS.filter(q => q.section === section).map((q) => (
+                                <motion.div
+                                    key={q.id}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    whileInView={{ opacity: 1, y: 0 }}
+                                    viewport={{ once: true, margin: "-100px" }}
+                                    className="exam-question-card"
+                                >
+                                    <div className="exam-question-header">
+                                        <h3 className="exam-question-text">
+                                            {q.text} <span style={{ color: '#ff4757' }}>*</span>
+                                        </h3>
+                                        <span className="exam-question-points">
+                                            {q.points} {q.points === 1 ? 'Punkt' : 'Punkte'}
+                                        </span>
+                                    </div>
+
+                                    {q.image && (
+                                        <img src={q.image} alt="Fragenbild" className="exam-question-image" />
+                                    )}
+
+                                    <div className="exam-options-grid">
+                                        {q.options.map((opt, oIdx) => {
+                                            const isRadio = q.type === 'radio';
+                                            const isChecked = (answers[q.id] || []).includes(opt.text);
+
+                                            return (
+                                                <label
+                                                    key={oIdx}
+                                                    className={`exam-option-label ${isChecked ? 'selected' : ''}`}
+                                                >
+                                                    <div className="flex items-center h-5 mt-0.5">
+                                                        <input
+                                                            type={isRadio ? "radio" : "checkbox"}
+                                                            name={q.id}
+                                                            checked={isChecked}
+                                                            onChange={(e) => handleAnswerChange(q.id, opt.text, q.type, e.target.checked)}
+                                                            className={`exam-radio-check ${isRadio ? 'is-radio' : ''}`}
+                                                        />
+                                                    </div>
+                                                    <div className="exam-option-text">
+                                                        {opt.text}
+                                                    </div>
+                                                </label>
+                                            )
+                                        })}
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </div>
+                    </div>
+                ))}
+
+                <div className="exam-footer">
+                    <button
+                        type="button"
+                        className="btn btn-ghost"
+                        onClick={logout}
+                    >
+                        Abbrechen & Abmelden
+                    </button>
+
+                    <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="btn btn-primary"
+                    >
+                        {isSubmitting ? (
+                            <>
+                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-3"></div>
+                                Einreichen...
+                            </>
+                        ) : (
+                            <>
+                                <Save size={18} className="mr-2" />
+                                Prüfung Abgeben
+                            </>
+                        )}
+                    </button>
+                </div>
+            </form>
         </div>
     );
 }
