@@ -5,11 +5,12 @@ import { Board } from './components/Board';
 import { AdminPanel } from './components/AdminPanel';
 import { Petals } from './components/Petals';
 import { LoginPage, PendingPage, ErrorPage } from './components/AuthPages';
+import { ToastStack } from './components/ToastStack';
 import './index.css';
 import './App.css';
 
 function AppInner() {
-  const { state, logout } = useApp();
+  const { state, logout, toasts, dismissToast } = useApp();
   const [currentView, setCurrentView] = useState<'board' | 'admin'>('board');
   const searchParams = new URLSearchParams(window.location.search);
   const authError = searchParams.get('error');
@@ -58,6 +59,7 @@ function AppInner() {
       <main className="app-main">
         {currentView === 'board' ? <Board /> : <AdminPanel />}
       </main>
+      <ToastStack toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 }

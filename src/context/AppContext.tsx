@@ -4,6 +4,8 @@ import type { AppState, Card, Column, Tag, User } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://sakura-bot-fkih.onrender.com/api';
 
+const BOARD_CACHE_KEY = 'sakura_board_cache_v1';
+
 // Token helpers (localStorage)
 const getToken = () => localStorage.getItem('sakura_token');
 const setToken = (t: string) => localStorage.setItem('sakura_token', t);
@@ -21,15 +23,86 @@ axios.defaults.withCredentials = true;
 type Action =
     | { type: 'ADD_CARD'; card: Card }
     | { type: 'UPDATE_CARD'; card: Card }
-    | { type: 'DELETE_CARD'; cardId: string }
+    | { type: 'DELETE_CARD'; cardId: string; affectedColumnIds?: string[] }
     | { type: 'MOVE_CARD'; cardId: string; fromColId: string; toColId: string; toIndex: number; siblingIds?: string[] }
     | { type: 'ADD_COLUMN'; column: Column }
     | { type: 'UPDATE_COLUMN'; column: Column }
-    | { type: 'DELETE_COLUMN'; columnId: string }
+    | { type: 'DELETE_COLUMN'; columnId: string; affectedCardIds?: string[] }
     | { type: 'ADD_TAG'; tag: Tag }
     | { type: 'UPDATE_TAG'; tag: Tag }
-    | { type: 'DELETE_TAG'; tagId: string }
+    | { type: 'DELETE_TAG'; tagId: string; affectedCardIds?: string[] }
     | { type: 'SET_BOARD'; tags: Tag[]; columns: Column[]; cards: Card[] };
+
+type PendingKind = 'upsert' | 'delete';
+type PendingMap = Map<string, PendingKind>;
+interface PendingState {
+    cards: PendingMap;
+    columns: PendingMap;
+    tags: PendingMap;
+}
+
+type ToastType = 'success' | 'error' | 'info';
+interface Toast {
+    id: string;
+    message: string;
+    type: ToastType;
+}
+
+function loadBoardCache(): { tags: Tag[]; columns: Column[]; cards: Card[] } | null {
+    try {
+        const raw = localStorage.getItem(BOARD_CACHE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed?.tags || !parsed?.columns || !parsed?.cards) return null;
+        return { tags: parsed.tags, columns: parsed.columns, cards: parsed.cards };
+    } catch {
+        return null;
+    }
+}
+
+function saveBoardCache(tags: Tag[], columns: Column[], cards: Card[]) {
+    try {
+        localStorage.setItem(BOARD_CACHE_KEY, JSON.stringify({ tags, columns, cards, savedAt: Date.now() }));
+    } catch {
+        // ignore cache write errors (private mode or quota)
+    }
+}
+
+function clearBoardCache() {
+    try {
+        localStorage.removeItem(BOARD_CACHE_KEY);
+    } catch {
+        // ignore cache clear errors
+    }
+}
+
+function mergeEntities<T extends { id: string }>(local: T[], remote: T[], pending: PendingMap): T[] {
+    const remoteMap = new Map(remote.map(item => [item.id, item]));
+    const localMap = new Map(local.map(item => [item.id, item]));
+    const merged: T[] = [];
+    const used = new Set<string>();
+
+    for (const [id, remoteItem] of remoteMap.entries()) {
+        const pendingKind = pending.get(id);
+        if (pendingKind === 'delete') continue;
+        if (pendingKind === 'upsert') {
+            const localItem = localMap.get(id);
+            merged.push(localItem ?? remoteItem);
+        } else {
+            merged.push(remoteItem);
+        }
+        used.add(id);
+    }
+
+    for (const [id, localItem] of localMap.entries()) {
+        if (used.has(id)) continue;
+        if (pending.get(id) === 'upsert') {
+            merged.push(localItem);
+        }
+    }
+
+    return merged;
+}
 
 function reducer(state: AppState, action: Action): AppState {
     switch (action.type) {
@@ -112,6 +185,9 @@ const initialState: AppState = {
 interface AppContextValue {
     state: AppState;
     dispatch: React.Dispatch<Action>;
+    toasts: Toast[];
+    notify: (message: string, type?: ToastType) => void;
+    dismissToast: (id: string) => void;
     canEdit: (card: Card) => boolean;
     canView: (card: Card) => boolean;
     canDeleteColumn: () => boolean;
@@ -158,31 +234,150 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [users, setUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [toasts, setToasts] = useState<Toast[]>([]);
     const isAuthenticatedRef = useRef(false);
     // Cooldown: pause polling for 15s after any local action
     const lastLocalActionRef = useRef(0);
+    const pendingRef = useRef<PendingState>({
+        cards: new Map(),
+        columns: new Map(),
+        tags: new Map(),
+    });
+    const stateRef = useRef(state);
+
+    useEffect(() => {
+        stateRef.current = state;
+    }, [state]);
+
+    useEffect(() => {
+        const cached = loadBoardCache();
+        if (cached) {
+            rawDispatch({ type: 'SET_BOARD', tags: cached.tags, columns: cached.columns, cards: cached.cards });
+        }
+    }, []);
+
+    useEffect(() => {
+        saveBoardCache(state.tags, state.columns, state.cards);
+    }, [state.tags, state.columns, state.cards]);
+
+    const dismissToast = useCallback((id: string) => {
+        setToasts(prev => prev.filter(t => t.id !== id));
+    }, []);
+
+    const notify = useCallback((message: string, type: ToastType = 'info') => {
+        const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        setToasts(prev => [...prev, { id, message, type }]);
+        setTimeout(() => {
+            setToasts(prev => prev.filter(t => t.id !== id));
+        }, 3600);
+    }, []);
 
     // Wrapped dispatch: update local state AND sync to API
     const dispatch = useCallback((action: Action) => {
+        const pending = pendingRef.current;
+        const snapshot = stateRef.current;
+
+        if (action.type === 'DELETE_CARD') {
+            const affectedColumnIds = snapshot.columns.filter(c => c.cardIds.includes(action.cardId)).map(c => c.id);
+            action.affectedColumnIds = affectedColumnIds;
+            pending.cards.set(action.cardId, 'delete');
+            affectedColumnIds.forEach(id => pending.columns.set(id, 'upsert'));
+        }
+
+        if (action.type === 'DELETE_COLUMN') {
+            const col = snapshot.columns.find(c => c.id === action.columnId);
+            const affectedCardIds = col?.cardIds ?? [];
+            action.affectedCardIds = affectedCardIds;
+            pending.columns.set(action.columnId, 'delete');
+            affectedCardIds.forEach(id => pending.cards.set(id, 'delete'));
+        }
+
+        if (action.type === 'DELETE_TAG') {
+            const affectedCardIds = snapshot.cards.filter(c => c.tagIds.includes(action.tagId)).map(c => c.id);
+            action.affectedCardIds = affectedCardIds;
+            pending.tags.set(action.tagId, 'delete');
+            affectedCardIds.forEach(id => pending.cards.set(id, 'upsert'));
+        }
+
+        if (action.type === 'ADD_CARD') {
+            pending.cards.set(action.card.id, 'upsert');
+            pending.columns.set(action.card.columnId, 'upsert');
+        }
+
+        if (action.type === 'UPDATE_CARD') {
+            pending.cards.set(action.card.id, 'upsert');
+        }
+
+        if (action.type === 'MOVE_CARD') {
+            pending.cards.set(action.cardId, 'upsert');
+            pending.columns.set(action.fromColId, 'upsert');
+            pending.columns.set(action.toColId, 'upsert');
+        }
+
+        if (action.type === 'ADD_COLUMN' || action.type === 'UPDATE_COLUMN') {
+            pending.columns.set(action.column.id, 'upsert');
+        }
+
+        if (action.type === 'ADD_TAG' || action.type === 'UPDATE_TAG') {
+            pending.tags.set(action.tag.id, 'upsert');
+        }
+
         rawDispatch(action);
         if (action.type !== 'SET_BOARD') {
             // Pause polling while we sync
             lastLocalActionRef.current = Date.now();
             syncToApi(action)
                 .then(() => {
-                    console.log(`✅ Sync ${action.type} OK`);
+                    if (action.type === 'ADD_CARD') notify('Karte erfolgreich erstellt.', 'success');
+
+                    if (action.type === 'ADD_CARD' || action.type === 'UPDATE_CARD' || action.type === 'MOVE_CARD') {
+                        pending.cards.delete(action.type === 'MOVE_CARD' ? action.cardId : action.card.id);
+                    }
+                    if (action.type === 'DELETE_CARD') {
+                        pending.cards.delete(action.cardId);
+                        action.affectedColumnIds?.forEach(id => pending.columns.delete(id));
+                    }
+                    if (action.type === 'ADD_COLUMN' || action.type === 'UPDATE_COLUMN') {
+                        pending.columns.delete(action.column.id);
+                    }
+                    if (action.type === 'DELETE_COLUMN') {
+                        pending.columns.delete(action.columnId);
+                        action.affectedCardIds?.forEach(id => pending.cards.delete(id));
+                    }
+                    if (action.type === 'MOVE_CARD') {
+                        pending.columns.delete(action.fromColId);
+                        pending.columns.delete(action.toColId);
+                    }
+                    if (action.type === 'ADD_CARD') {
+                        pending.columns.delete(action.card.columnId);
+                    }
+                    if (action.type === 'ADD_TAG' || action.type === 'UPDATE_TAG') {
+                        pending.tags.delete(action.tag.id);
+                    }
+                    if (action.type === 'DELETE_TAG') {
+                        pending.tags.delete(action.tagId);
+                        action.affectedCardIds?.forEach(id => pending.cards.delete(id));
+                    }
                 })
                 .catch(err => {
+                    notify('Sync fehlgeschlagen. Bitte erneut versuchen.', 'error');
                     console.error(`❌ Sync ${action.type} FAILED:`, err?.response?.status, err?.message);
                 });
         }
-    }, []);
+    }, [notify]);
 
     // Load board data from API
     const fetchBoard = useCallback(async () => {
         try {
             const res = await axios.get(`${API_URL}/board`);
-            rawDispatch({ type: 'SET_BOARD', tags: res.data.tags, columns: res.data.columns, cards: res.data.cards });
+            const snapshot = stateRef.current;
+            const pending = pendingRef.current;
+            const merged = {
+                tags: mergeEntities(snapshot.tags, res.data.tags || [], pending.tags),
+                columns: mergeEntities(snapshot.columns, res.data.columns || [], pending.columns),
+                cards: mergeEntities(snapshot.cards, res.data.cards || [], pending.cards),
+            };
+            rawDispatch({ type: 'SET_BOARD', tags: merged.tags, columns: merged.columns, cards: merged.cards });
         } catch (err) {
             console.error('Could not load board from API:', err);
         }
@@ -267,6 +462,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         } finally {
             isAuthenticatedRef.current = false;
             clearToken();
+            clearBoardCache();
             setCurrentUser(null);
             window.location.href = '/';
         }
@@ -310,7 +506,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
 
     return (
-        <AppContext.Provider value={{ state: fullState, dispatch, canEdit, canView, canDeleteColumn, canDeleteCard, isAdmin, isLoading, logout, users, fetchUsers }}>
+        <AppContext.Provider value={{ state: fullState, dispatch, toasts, notify, dismissToast, canEdit, canView, canDeleteColumn, canDeleteCard, isAdmin, isLoading, logout, users, fetchUsers }}>
             {children}
         </AppContext.Provider>
     );
