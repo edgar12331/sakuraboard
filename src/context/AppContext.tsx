@@ -497,6 +497,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
                     canDeleteColumns: u.can_delete_columns !== 0,
                     canDeleteCards: u.can_delete_cards !== 0,
                 },
+                discordRoles: (() => { try { return JSON.parse(u.discord_roles || '[]'); } catch { return []; } })(),
             }));
             setUsers(mapped);
         } catch (err) {

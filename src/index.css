@@ -622,3 +622,29 @@ body {
 .kanban-card-spacer:hover {
   opacity: 1;
 }
+
+/* ─── Discord Role Badges ─── */
+.discord-roles-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+  align-items: center;
+}
+
+.discord-role-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 500;
+  background: rgba(114, 137, 218, 0.15);
+  color: #7289da;
+  border: 1px solid rgba(114, 137, 218, 0.3);
+  white-space: nowrap;
+}
+
+.anfrage-row {
+  flex-wrap: wrap;
+  gap: 12px;
+}

@@ -1,8 +1,10 @@
 import { Droppable, Draggable } from '@hello-pangea/dnd';
 import { Plus, Trash2 } from 'lucide-react';
+import { useState } from 'react';
 import type { Column, Card, Tag, User } from '../types';
 import { useApp } from '../context/AppContext';
 import { KanbanCard } from './KanbanCard';
+import { ConfirmDialog } from './ConfirmDialog';
 
 interface BoardColumnProps {
     column: Column;
@@ -13,15 +15,19 @@ interface BoardColumnProps {
 
 export function BoardColumn({ column, onEditCard, onAddCard, filterCardIds }: BoardColumnProps) {
     const { state, dispatch, canView, canDeleteColumn } = useApp();
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     const cards = column.cardIds
         .map(id => state.cards.find(c => c.id === id))
         .filter((c): c is Card => !!c && canView(c) && (!filterCardIds || filterCardIds.has(c.id)));
 
     const handleDeleteColumn = () => {
-        if (confirm(`Spalte "${column.title}" und alle Karten darin löschen?`)) {
-            dispatch({ type: 'DELETE_COLUMN', columnId: column.id });
-        }
+        setShowDeleteConfirm(true);
+    };
+
+    const confirmDeleteColumn = () => {
+        dispatch({ type: 'DELETE_COLUMN', columnId: column.id });
+        setShowDeleteConfirm(false);
     };
 
     return (
@@ -74,6 +80,18 @@ export function BoardColumn({ column, onEditCard, onAddCard, filterCardIds }: Bo
                     </div>
                 )}
             </Droppable>
+
+            {showDeleteConfirm && (
+                <ConfirmDialog
+                    title="Spalte löschen"
+                    message={`Spalte "${column.title}" und alle ${cards.length} Karten darin wirklich löschen?`}
+                    confirmText="Ja, löschen"
+                    cancelText="Abbrechen"
+                    variant="danger"
+                    onConfirm={confirmDeleteColumn}
+                    onCancel={() => setShowDeleteConfirm(false)}
+                />
+            )}
         </div>
     );
 }

@@ -13,6 +13,7 @@ export interface User {
     role: Role;
     status?: 'pending' | 'approved';
     permissions?: UserPermissions;
+    discordRoles?: string[];
 }
 
 export interface Tag {

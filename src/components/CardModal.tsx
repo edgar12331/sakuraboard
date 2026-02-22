@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { X, Upload, Trash2, Calendar, User2, Tag, Lock, Eye, Edit3, Check } from 'lucide-react';
 import type { Card } from '../types';
 import { useApp } from '../context/AppContext';
+import { ConfirmDialog } from './ConfirmDialog';
 
 interface CardModalProps {
     card?: Card;
@@ -43,6 +44,7 @@ export function CardModal({ card, columnId, onClose }: CardModalProps) {
     const [allowedEditorIds, setAllowedEditorIds] = useState<string[]>(card?.allowedEditorIds ?? []);
     const [activeTab, setActiveTab] = useState<'details' | 'access'>('details');
     const [imagePreview, setImagePreview] = useState<string>(card?.imageUrl ?? '');
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const fileRef = useRef<HTMLInputElement>(null);
 
     const handleSave = () => {
@@ -66,7 +68,13 @@ export function CardModal({ card, columnId, onClose }: CardModalProps) {
     };
 
     const handleDelete = () => {
-        if (card && confirm('Diese Karte wirklich löschen?')) {
+        if (card) {
+            setShowDeleteConfirm(true);
+        }
+    };
+
+    const confirmDelete = () => {
+        if (card) {
             dispatch({ type: 'DELETE_CARD', cardId: card.id });
             onClose();
         }
@@ -296,6 +304,18 @@ export function CardModal({ card, columnId, onClose }: CardModalProps) {
                     )}
                 </div>
             </div>
+
+            {showDeleteConfirm && (
+                <ConfirmDialog
+                    title="Karte löschen"
+                    message={`Möchtest du die Karte "${card?.title}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`}
+                    confirmText="Ja, löschen"
+                    cancelText="Abbrechen"
+                    variant="danger"
+                    onConfirm={confirmDelete}
+                    onCancel={() => setShowDeleteConfirm(false)}
+                />
+            )}
         </div>
     );
 }

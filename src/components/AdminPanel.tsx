@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios';
-import { Tag, Users, LayoutGrid, Trash2, Edit2, Plus, Check, X, Shield, Clock, AlertCircle, UserX, Zap, Swords } from 'lucide-react';
+import { Tag, Users, LayoutGrid, Trash2, Edit2, Plus, Check, X, Shield, Clock, AlertCircle, UserX, Zap, Swords, Inbox, Ban } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import type { Tag as TagType, User, Role } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://sakura-bot-fkih.onrender.com/api';
 
-type AdminTab = 'tags' | 'users' | 'columns' | 'moderation';
+type AdminTab = 'tags' | 'users' | 'columns' | 'moderation' | 'anfragen';
 
 const ROLE_OPTIONS: Role[] = ['admin', 'editor', 'viewer'];
 
@@ -16,6 +16,23 @@ const TAG_COLORS = [
     '#70a1ff', '#eccc68', '#a29bfe', '#fd79a8',
     '#00cec9', '#e17055',
 ];
+
+// Map known Discord Role IDs to readable names
+const DISCORD_ROLE_NAMES: Record<string, string> = {
+    '1096402401424060516': 'Inhaber',
+    '1136028969481797743': 'B. King',
+    '1097403678715031612': 'Admin',
+    '1096402401407279150': 'Stellvertretung',
+    '1427766432414044160': 'Management',
+    '1096402401382109245': 'Leitung',
+    '1096402401407279154': 'Co-Leitung',
+    '1306720155132497930': 'Moderator',
+    '1096402401407279152': 'Support',
+};
+
+function getDiscordRoleName(roleId: string): string {
+    return DISCORD_ROLE_NAMES[roleId] || roleId;
+}
 
 // Inline error/success notification
 function InlineAlert({ message, type, onClose }: { message: string; type: 'error' | 'success'; onClose: () => void }) {
@@ -124,6 +141,32 @@ export function AdminPanel() {
         }
     };
 
+    const handleRejectUser = async (user: User) => {
+        try {
+            await axios.delete(`${API_URL}/admin/users/${user.id}`);
+            if (fetchUsers) fetchUsers();
+            showAlert(`Anfrage von ${user.name} wurde abgelehnt.`, 'success');
+        } catch (err) {
+            console.error(err);
+            showAlert('Fehler: Anfrage konnte nicht abgelehnt werden.');
+        }
+    };
+
+    const handleRevokeUser = async (user: User) => {
+        if (!confirm(`Zugriff von ${user.name} wirklich entziehen?`)) return;
+        try {
+            await axios.post(`${API_URL}/admin/users/${user.id}`, {
+                status: 'pending',
+                website_role: 'viewer'
+            });
+            if (fetchUsers) fetchUsers();
+            showAlert(`Zugriff von ${user.name} wurde entzogen.`, 'success');
+        } catch (err) {
+            console.error(err);
+            showAlert('Fehler: Zugriff konnte nicht entzogen werden.');
+        }
+    };
+
     const handleModerationAction = async (action: 'timeout' | 'kick' | 'ban') => {
         if (!modUserId.trim()) { showAlert('Bitte einen Nutzer auswählen.'); return; }
         setModLoading(true);
@@ -176,7 +219,8 @@ export function AdminPanel() {
             <div className="admin-tabs">
                 {([
                     { key: 'tags', icon: <Tag size={15} />, label: 'Tags' },
-                    { key: 'users', icon: <Users size={15} />, label: `Benutzer${pendingUsers.length > 0 ? ` (${pendingUsers.length} ⏳)` : ''}` },
+                    { key: 'users', icon: <Users size={15} />, label: 'Benutzer' },
+                    { key: 'anfragen', icon: <Inbox size={15} />, label: `Anfragen${pendingUsers.length > 0 ? ` (${pendingUsers.length})` : ''}` },
                     { key: 'columns', icon: <LayoutGrid size={15} />, label: 'Spalten' },
                     { key: 'moderation', icon: <Swords size={15} />, label: 'Moderation' },
                 ] as const).map(tab => (
@@ -280,35 +324,6 @@ export function AdminPanel() {
                             <h2 className="section-title">Benutzer & Rollen</h2>
                         </div>
 
-                        {pendingUsers.length > 0 && (
-                            <div className="pending-section" style={{ marginBottom: '24px' }}>
-                                <h3 className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--sakura-400)', marginBottom: '8px' }}>
-                                    <Clock size={14} /> Zugriffsanfragen ({pendingUsers.length})
-                                </h3>
-                                <div className="users-list">
-                                    {pendingUsers.map(user => (
-                                        <div key={user.id} className="user-row surface" style={{ borderColor: 'var(--sakura-400)' }}>
-                                            {user.avatar ? (
-                                                <img src={`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`} className="avatar avatar-lg" alt="" />
-                                            ) : (
-                                                <div className="avatar avatar-lg">{user.name.substring(0, 2).toUpperCase()}</div>
-                                            )}
-                                            <div className="user-info">
-                                                <p className="font-semibold">{user.name}</p>
-                                                <p className="text-xs text-muted" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                    <UserX size={11} /> Nicht auf dem Sakura Discord
-                                                </p>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <button className="btn btn-sm btn-primary" onClick={() => handleApproveUser(user, 'editor')}>Als Editor freischalten</button>
-                                                <button className="btn btn-sm btn-secondary" onClick={() => handleApproveUser(user, 'viewer')}>Als Viewer freischalten</button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
                         <h3 className="text-sm font-bold text-muted" style={{ marginBottom: '8px' }}>Freigeschaltete Benutzer</h3>
                         <div className="users-list">
                             {approvedUsers.map(user => {
@@ -323,6 +338,14 @@ export function AdminPanel() {
                                         <div className="user-info">
                                             <p className="font-semibold">{user.name} {isSelf && <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>(du)</span>}</p>
                                             <p className="text-xs text-muted">Discord ID: {user.id}</p>
+                                            {user.discordRoles && user.discordRoles.length > 0 && (
+                                                <div className="discord-roles-row">
+                                                    {user.discordRoles.slice(0, 5).map((roleId: string) => (
+                                                        <span key={roleId} className="discord-role-badge">{getDiscordRoleName(roleId)}</span>
+                                                    ))}
+                                                    {user.discordRoles.length > 5 && <span className="discord-role-badge">+{user.discordRoles.length - 5}</span>}
+                                                </div>
+                                            )}
                                         </div>
                                         <div className="role-selector">
                                             {ROLE_OPTIONS.map(role => (
@@ -378,10 +401,76 @@ export function AdminPanel() {
                                                 </label>
                                             </div>
                                         )}
+                                        {!isSelf && (
+                                            <button
+                                                className="btn btn-danger btn-sm"
+                                                onClick={() => handleRevokeUser(user)}
+                                                title="Zugriff entziehen"
+                                                style={{ marginLeft: 'auto', flexShrink: 0 }}
+                                            >
+                                                <Ban size={13} /> Entziehen
+                                            </button>
+                                        )}
                                     </div>
                                 );
                             })}
                         </div>
+                    </div>
+                )}
+
+                {/* ── ANFRAGEN ── */}
+                {activeTab === 'anfragen' && (
+                    <div className="admin-section">
+                        <div className="section-header">
+                            <h2 className="section-title">Zugriffsanfragen</h2>
+                        </div>
+
+                        {pendingUsers.length === 0 ? (
+                            <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                                <Inbox size={40} style={{ marginBottom: '12px', opacity: 0.4 }} />
+                                <p>Keine offenen Anfragen.</p>
+                                <p className="text-xs" style={{ marginTop: '6px', opacity: 0.6 }}>Wenn jemand sich anmeldet, ohne die nötigen Discord-Rollen zu haben, erscheint die Anfrage hier.</p>
+                            </div>
+                        ) : (
+                            <div className="users-list">
+                                {pendingUsers.map(user => (
+                                    <div key={user.id} className="user-row surface anfrage-row" style={{ borderColor: 'var(--sakura-400)' }}>
+                                        {user.avatar ? (
+                                            <img src={`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`} className="avatar avatar-lg" alt="" />
+                                        ) : (
+                                            <div className="avatar avatar-lg">{user.name.substring(0, 2).toUpperCase()}</div>
+                                        )}
+                                        <div className="user-info" style={{ flex: 1 }}>
+                                            <p className="font-semibold">{user.name}</p>
+                                            <p className="text-xs text-muted">Discord ID: {user.id}</p>
+                                            {user.discordRoles && user.discordRoles.length > 0 ? (
+                                                <div className="discord-roles-row" style={{ marginTop: '6px' }}>
+                                                    <span className="text-xs" style={{ color: 'var(--text-muted)', marginRight: '6px' }}>Discord-Rollen:</span>
+                                                    {user.discordRoles.map((roleId: string) => (
+                                                        <span key={roleId} className="discord-role-badge">{getDiscordRoleName(roleId)}</span>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <p className="text-xs" style={{ color: '#ff4757', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                    <UserX size={11} /> Nicht auf dem Sakura Discord / Keine Rollen
+                                                </p>
+                                            )}
+                                        </div>
+                                        <div className="flex gap-2" style={{ flexShrink: 0 }}>
+                                            <button className="btn btn-sm btn-primary" onClick={() => handleApproveUser(user, 'editor')}>
+                                                <Check size={13} /> Als Editor
+                                            </button>
+                                            <button className="btn btn-sm btn-secondary" onClick={() => handleApproveUser(user, 'viewer')}>
+                                                Als Viewer
+                                            </button>
+                                            <button className="btn btn-sm btn-danger" onClick={() => handleRejectUser(user)}>
+                                                <X size={13} /> Ablehnen
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
 

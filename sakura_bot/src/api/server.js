@@ -226,6 +226,18 @@ export function startApiServer(discordClient) {
         }
     });
 
+    // Delete a user (reject access request)
+    app.delete('/api/admin/users/:userId', authenticateToken, async (req, res) => {
+        if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+        try {
+            await pool.execute('DELETE FROM website_users WHERE user_id = ?', [req.params.userId]);
+            res.json({ success: true });
+        } catch (err) {
+            console.error('Delete user error:', err);
+            res.status(500).json({ error: 'DB Error' });
+        }
+    });
+
     // Get all Discord guild members (for moderation member picker)
     app.get('/api/admin/discord/members', authenticateToken, async (req, res) => {
         if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
