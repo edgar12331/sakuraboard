@@ -1,17 +1,25 @@
+import React from 'react';
 import { Calendar, Image } from 'lucide-react';
-import type { Card } from '../types';
-import { useApp } from '../context/AppContext';
+import type { Card, Tag, User } from '../types';
 
 interface KanbanCardProps {
     card: Card;
+    tags: Tag[];
+    assignees: User[];
     onClick: () => void;
 }
 
-export function KanbanCard({ card, onClick }: KanbanCardProps) {
-    const { state } = useApp();
+export const KanbanCard = React.memo(function KanbanCard({ card, tags, assignees, onClick }: KanbanCardProps) {
+    const isSpacer = /^--+$/.test(card.title.trim());
 
-    const tags = card.tagIds.map(id => state.tags.find(t => t.id === id)).filter(Boolean);
-    const assignees = card.assignedUserIds.map(id => state.users.find(u => u.id === id)).filter(Boolean);
+    if (isSpacer) {
+        return (
+            <div className="kanban-card-spacer" onClick={onClick}>
+                <hr />
+            </div>
+        );
+    }
+
 
     const isOverdue = card.dueDate && new Date(card.dueDate) < new Date();
 
@@ -77,4 +85,4 @@ export function KanbanCard({ card, onClick }: KanbanCardProps) {
             </div>
         </div>
     );
-}
+});

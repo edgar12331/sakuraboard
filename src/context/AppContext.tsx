@@ -22,7 +22,7 @@ type Action =
     | { type: 'ADD_CARD'; card: Card }
     | { type: 'UPDATE_CARD'; card: Card }
     | { type: 'DELETE_CARD'; cardId: string }
-    | { type: 'MOVE_CARD'; cardId: string; fromColId: string; toColId: string; toIndex: number }
+    | { type: 'MOVE_CARD'; cardId: string; fromColId: string; toColId: string; toIndex: number; siblingIds?: string[] }
     | { type: 'ADD_COLUMN'; column: Column }
     | { type: 'UPDATE_COLUMN'; column: Column }
     | { type: 'DELETE_COLUMN'; columnId: string }
@@ -65,6 +65,7 @@ function reducer(state: AppState, action: Action): AppState {
             const newFromIds = fromCol.cardIds.filter(id => id !== cardId);
             const newToIds = toCol.cardIds.filter(id => id !== cardId);
             newToIds.splice(toIndex, 0, cardId);
+            action.siblingIds = [...newToIds];
             return {
                 ...state,
                 cards: state.cards.map(c => c.id === cardId ? { ...c, columnId: toColId } : c),
@@ -134,7 +135,7 @@ function syncToApi(action: Action): Promise<void> {
         case 'DELETE_CARD':
             return axios.delete(`${API_URL}/board/cards/${action.cardId}`).then(() => { });
         case 'MOVE_CARD':
-            return axios.put(`${API_URL}/board/cards/${action.cardId}/move`, { columnId: action.toColId, sortOrder: action.toIndex }).then(() => { });
+            return axios.put(`${API_URL}/board/cards/${action.cardId}/move`, { columnId: action.toColId, sortOrder: action.toIndex, siblingIds: action.siblingIds }).then(() => { });
         case 'ADD_COLUMN':
             return axios.post(`${API_URL}/board/columns`, action.column).then(() => { });
         case 'UPDATE_COLUMN':
@@ -201,7 +202,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
                     fetchBoard();
                 }
             }
-        }, 5000);
+        }, 3000);
         return () => clearInterval(interval);
     }, [fetchBoard]);
 

@@ -534,9 +534,17 @@ export function startApiServer(discordClient) {
 
     // Move card to different column
     app.put('/api/board/cards/:id/move', authenticateToken, async (req, res) => {
-        const { columnId, sortOrder } = req.body;
+        const { columnId, sortOrder, siblingIds } = req.body;
         try {
             await pool.execute('UPDATE board_cards SET column_id = ?, sort_order = ? WHERE id = ?', [columnId, sortOrder || 0, req.params.id]);
+
+            if (Array.isArray(siblingIds) && siblingIds.length > 0) {
+                // Update exact sort_order for all cards in the destination column
+                for (let i = 0; i < siblingIds.length; i++) {
+                    await pool.execute('UPDATE board_cards SET sort_order = ? WHERE id = ?', [i, siblingIds[i]]);
+                }
+            }
+
             res.json({ success: true });
         } catch (err) {
             res.status(500).json({ error: 'Failed to move card' });

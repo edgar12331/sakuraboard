@@ -1,6 +1,6 @@
 import { Droppable, Draggable } from '@hello-pangea/dnd';
 import { Plus, Trash2 } from 'lucide-react';
-import type { Column, Card } from '../types';
+import type { Column, Card, Tag, User } from '../types';
 import { useApp } from '../context/AppContext';
 import { KanbanCard } from './KanbanCard';
 
@@ -60,7 +60,12 @@ export function BoardColumn({ column, onEditCard, onAddCard, filterCardIds }: Bo
                                         {...prov.dragHandleProps}
                                         className={`card-wrapper ${snap.isDragging ? 'dragging' : ''}`}
                                     >
-                                        <KanbanCard card={card} onClick={() => onEditCard(card)} />
+                                        <KanbanCard
+                                            card={card}
+                                            tags={card.tagIds.map(id => state.tags.find(t => t.id === id)).filter((t): t is Tag => !!t)}
+                                            assignees={card.assignedUserIds.map(id => state.users.find(u => u.id === id)).filter((u): u is User => !!u)}
+                                            onClick={() => onEditCard(card)}
+                                        />
                                     </div>
                                 )}
                             </Draggable>

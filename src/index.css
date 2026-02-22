@@ -601,3 +601,24 @@ body {
 .search-input {
   padding-left: 36px !important;
 }
+
+/* ─── Spacer Cards ─── */
+.kanban-card-spacer {
+  display: flex;
+  align-items: center;
+  padding: 8px 4px;
+  cursor: grab;
+  opacity: 0.6;
+  background: transparent;
+}
+
+.kanban-card-spacer hr {
+  width: 100%;
+  border: none;
+  border-top: 2px dashed var(--border-hover);
+  margin: 0;
+}
+
+.kanban-card-spacer:hover {
+  opacity: 1;
+}
