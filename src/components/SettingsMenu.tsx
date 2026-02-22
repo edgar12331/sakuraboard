@@ -82,10 +82,10 @@ export function SettingsMenu({ bg, onChangeBg }: SettingsMenuProps) {
             </button>
 
             {open && (
-                <div className="modal-backdrop" onClick={() => setOpen(false)}>
+                <div className="modal-backdrop" onClick={() => setOpen(false)} style={{ padding: '20px', overflow: 'auto' }}>
                     <div
                         className="modal settings-modal"
-                        style={{ maxWidth: '480px', padding: '24px' }}
+                        style={{ maxWidth: '520px', padding: '24px', margin: 'auto' }}
                         onClick={e => e.stopPropagation()}
                     >
                         <div className="modal-header" style={{ padding: 0, marginBottom: '20px' }}>
@@ -116,30 +116,29 @@ export function SettingsMenu({ bg, onChangeBg }: SettingsMenuProps) {
                         </div>
 
                         <h3 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                            Hintergrund
+                            Hintergrund wählen
                         </h3>
 
-                        <div className="bg-presets">
+                        <div className="bg-presets" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
                             {BG_PRESETS.map(preset => (
                                 <button
                                     key={preset.id}
                                     className={`bg-preset-btn ${bg === preset.value ? 'active' : ''}`}
                                     onClick={() => onChangeBg(preset.value)}
+                                    style={{ width: '100%' }}
                                 >
                                     {preset.preview ? (
-                                        <img 
-                                            src={preset.preview} 
-                                            alt={preset.label} 
-                                            className="bg-preset-thumb"
-                                            loading="eager"
-                                            onError={(e) => {
-                                                console.error(`Failed to load image: ${preset.preview}`);
-                                                e.currentTarget.style.display = 'none';
-                                            }}
-                                        />
+                                        <div className="bg-preset-thumb" style={{
+                                            backgroundImage: `url(${preset.preview})`,
+                                            backgroundSize: 'cover',
+                                            backgroundPosition: 'center',
+                                            width: '100%',
+                                            height: '80px',
+                                            borderRadius: '8px'
+                                        }} />
                                     ) : (
-                                        <div className="bg-preset-thumb bg-preset-none">
-                                            <X size={16} />
+                                        <div className="bg-preset-thumb bg-preset-none" style={{ height: '80px' }}>
+                                            <X size={20} />
                                         </div>
                                     )}
                                     <span className="bg-preset-label">{preset.label}</span>
@@ -149,9 +148,10 @@ export function SettingsMenu({ bg, onChangeBg }: SettingsMenuProps) {
                             <button
                                 className={`bg-preset-btn ${bg && !BG_PRESETS.find(p => p.value === bg) ? 'active' : ''}`}
                                 onClick={() => fileRef.current?.click()}
+                                style={{ width: '100%' }}
                             >
-                                <div className="bg-preset-thumb bg-preset-upload">
-                                    <Image size={16} />
+                                <div className="bg-preset-thumb bg-preset-upload" style={{ height: '80px' }}>
+                                    <Image size={20} />
                                 </div>
                                 <span className="bg-preset-label">Eigenes Bild</span>
                             </button>
