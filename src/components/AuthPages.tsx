@@ -116,14 +116,27 @@ export function PendingPage({ logout }: { logout: () => void }) {
                 <div className="login-logo-container" style={{ marginBottom: '16px' }}>
                     <Cherry size={56} className="sakura-spin" color="var(--sakura-400)" />
                 </div>
-                <h1 className="login-title" style={{ fontSize: '24px' }}>Kein Zugriff</h1>
+                <h1 className="login-title" style={{ fontSize: '24px' }}>Zugriff ausstehend</h1>
                 <p className="login-subtitle" style={{ marginBottom: '8px' }}>
-                    Du bist <strong>nicht auf dem Sakura Discord</strong> oder wurdest noch nicht freigeschaltet.
+                    Deine <strong>Zugriffsanfrage wurde registriert</strong> und wartet auf Freischaltung.
                 </p>
                 <p className="login-subtitle" style={{ marginBottom: '24px', fontSize: '13px', opacity: 0.7 }}>
-                    Bitte tritt dem Sakura Discord bei und warte, bis ein Administrator deinen Account freigibt.
-                    Wenn du bereits Mitglied bist, melde dich kurz bei einem Admin.
+                    Du benötigst die erforderlichen Discord-Rollen oder eine manuelle Freigabe durch einen Administrator.
+                    Sobald du freigeschaltet wurdest, kannst du dich einfach neu anmelden.
                 </p>
+
+                <div style={{ 
+                    padding: '12px', 
+                    borderRadius: '8px', 
+                    background: 'rgba(112, 161, 255, 0.1)', 
+                    border: '1px solid rgba(112, 161, 255, 0.3)',
+                    marginBottom: '16px',
+                    fontSize: '12px',
+                    color: 'var(--text-muted)'
+                }}>
+                    <strong style={{ color: 'var(--text)' }}>Hinweis:</strong><br />
+                    Ein Administrator kann deine Anfrage im Admin Panel unter "Anfragen" sehen und dich freischalten.
+                </div>
 
                 <button className="btn btn-secondary mt-4" onClick={logout}>
                     Abmelden

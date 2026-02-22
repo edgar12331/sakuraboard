@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios';
 import { Tag, Users, LayoutGrid, Trash2, Edit2, Plus, Check, X, Shield, Clock, AlertCircle, UserX, Zap, Swords, Inbox, Ban } from 'lucide-react';
@@ -76,6 +76,21 @@ export function AdminPanel() {
     const [guildMembers, setGuildMembers] = useState<{ id: string; displayName: string; username: string; avatar: string | null }[]>([]);
     const [membersLoading, setMembersLoading] = useState(false);
     const [selectedMember, setSelectedMember] = useState<{ id: string; displayName: string } | null>(null);
+
+    // Auto-refresh user list when on users or anfragen tab (every 30 seconds)
+    useEffect(() => {
+        if (activeTab === 'users' || activeTab === 'anfragen') {
+            // Initial load
+            if (fetchUsers) fetchUsers();
+
+            // Set up interval
+            const interval = setInterval(() => {
+                if (fetchUsers) fetchUsers();
+            }, 30000); // 30 seconds
+
+            return () => clearInterval(interval);
+        }
+    }, [activeTab, fetchUsers]);
 
     const showAlert = (text: string, type: 'error' | 'success' = 'error') => {
         setAlertMsg({ text, type });
@@ -322,11 +337,22 @@ export function AdminPanel() {
                     <div className="admin-section">
                         <div className="section-header">
                             <h2 className="section-title">Benutzer & Rollen</h2>
+                            <p className="text-xs text-muted" style={{ marginTop: '4px' }}>
+                                Nur Benutzer mit aktivem Zugriff. Benutzer ohne Discord-Rollen werden automatisch entfernt.
+                            </p>
                         </div>
 
-                        <h3 className="text-sm font-bold text-muted" style={{ marginBottom: '8px' }}>Freigeschaltete Benutzer</h3>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                            <h3 className="text-sm font-bold text-muted">Freigeschaltete Benutzer ({approvedUsers.length})</h3>
+                        </div>
                         <div className="users-list">
-                            {approvedUsers.map(user => {
+                            {approvedUsers.length === 0 ? (
+                                <div className="surface" style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                                    <Users size={32} style={{ opacity: 0.3, margin: '0 auto 8px' }} />
+                                    <p>Keine freigeschalteten Benutzer</p>
+                                </div>
+                            ) : (
+                                approvedUsers.map(user => {
                                 const isSelf = user.id === currentUser?.id;
                                 return (
                                     <div key={user.id} className="user-row surface">
@@ -413,7 +439,7 @@ export function AdminPanel() {
                                         )}
                                     </div>
                                 );
-                            })}
+                            }))}
                         </div>
                     </div>
                 )}
@@ -423,17 +449,35 @@ export function AdminPanel() {
                     <div className="admin-section">
                         <div className="section-header">
                             <h2 className="section-title">Zugriffsanfragen</h2>
+                            <p className="text-xs text-muted" style={{ marginTop: '4px' }}>
+                                Benutzer ohne Zugriff oder ohne erforderliche Discord-Rollen ({pendingUsers.length})
+                            </p>
                         </div>
 
                         {pendingUsers.length === 0 ? (
                             <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
                                 <Inbox size={40} style={{ marginBottom: '12px', opacity: 0.4 }} />
                                 <p>Keine offenen Anfragen.</p>
-                                <p className="text-xs" style={{ marginTop: '6px', opacity: 0.6 }}>Wenn jemand sich anmeldet, ohne die nötigen Discord-Rollen zu haben, erscheint die Anfrage hier.</p>
+                                <p className="text-xs" style={{ marginTop: '6px', opacity: 0.6 }}>
+                                    Benutzer ohne erforderliche Discord-Rollen oder die sich neu anmelden erscheinen hier automatisch.
+                                </p>
                             </div>
                         ) : (
-                            <div className="users-list">
-                                {pendingUsers.map(user => (
+                            <>
+                                <div style={{ 
+                                    padding: '12px', 
+                                    borderRadius: '8px', 
+                                    background: 'rgba(255, 107, 157, 0.1)', 
+                                    border: '1px solid rgba(255, 107, 157, 0.3)',
+                                    marginBottom: '16px',
+                                    fontSize: '12px',
+                                    color: 'var(--text-muted)'
+                                }}>
+                                    <Clock size={14} style={{ display: 'inline', marginRight: '6px' }} />
+                                    Diese Benutzer haben sich angemeldet, aber warten auf Freischaltung. Sie sehen eine "Zugriff ausstehend" Seite.
+                                </div>
+                                <div className="users-list">
+                                    {pendingUsers.map(user => (
                                     <div key={user.id} className="user-row surface anfrage-row" style={{ borderColor: 'var(--sakura-400)' }}>
                                         {user.avatar ? (
                                             <img src={`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`} className="avatar avatar-lg" alt="" />
@@ -469,7 +513,8 @@ export function AdminPanel() {
                                         </div>
                                     </div>
                                 ))}
-                            </div>
+                                </div>
+                            </>
                         )}
                     </div>
                 )}
