@@ -135,6 +135,18 @@ function reducer(state: AppState, action: Action): AppState {
             const fromCol = state.columns.find(c => c.id === fromColId);
             const toCol = state.columns.find(c => c.id === toColId);
             if (!fromCol || !toCol) return state;
+            if (fromColId === toColId) {
+                const newIds = fromCol.cardIds.filter(id => id !== cardId);
+                newIds.splice(toIndex, 0, cardId);
+                action.siblingIds = [...newIds];
+                return {
+                    ...state,
+                    columns: state.columns.map(c =>
+                        c.id === fromColId ? { ...c, cardIds: newIds } : c
+                    ),
+                };
+            }
+
             const newFromIds = fromCol.cardIds.filter(id => id !== cardId);
             const newToIds = toCol.cardIds.filter(id => id !== cardId);
             newToIds.splice(toIndex, 0, cardId);
