@@ -7,6 +7,7 @@ import { Petals } from './components/Petals';
 import { LoginPage, PendingPage, ErrorPage } from './components/AuthPages';
 import { ToastStack } from './components/ToastStack';
 import { SettingsMenu, useBackground } from './components/SettingsMenu';
+import { TunerExam } from './components/TunerExam';
 import './index.css';
 import './App.css';
 
@@ -16,6 +17,15 @@ function AppInner() {
   const [currentView, setCurrentView] = useState<'board' | 'admin'>('board');
   const searchParams = new URLSearchParams(window.location.search);
   const authError = searchParams.get('error');
+
+  const appTypeParam = searchParams.get('app');
+  const [appType] = useState<'board' | 'tuner'>(() => {
+    if (appTypeParam === 'tuner') {
+      localStorage.setItem('sakura_app_type', 'tuner');
+      return 'tuner';
+    }
+    return localStorage.getItem('sakura_app_type') === 'tuner' ? 'tuner' : 'board';
+  });
 
   if (authError === 'oauth_failed') {
     return (
@@ -37,6 +47,7 @@ function AppInner() {
   }
 
   if (!state.currentUser) {
+    localStorage.removeItem('sakura_app_type');
     return (
       <div className="app">
         <Petals />
@@ -45,11 +56,24 @@ function AppInner() {
     );
   }
 
-  if (state.currentUser.status === 'pending') {
+  if (state.currentUser.status === 'pending' && appType !== 'tuner') {
     return (
       <div className="app">
         <Petals />
         <PendingPage logout={logout} />
+      </div>
+    );
+  }
+
+  if (appType === 'tuner') {
+    return (
+      <div className="app">
+        {bg && (
+          <div className="app-bg-layer" style={{ backgroundImage: `url(${bg})` }} />
+        )}
+        <Petals />
+        <TunerExam logout={logout} />
+        <ToastStack toasts={toasts} onDismiss={dismissToast} />
       </div>
     );
   }

@@ -53,9 +53,12 @@ export function startApiServer(discordClient) {
 
     // 1. Redirect to Discord OAuth
     app.get('/api/auth/discord', (req, res) => {
-        const { stayLoggedIn } = req.query;
+        const { stayLoggedIn, tuner } = req.query;
         // Use 'state' to carry over the preference through the OAuth flow
-        const state = stayLoggedIn === 'true' ? 'stayIn' : 'noStay';
+        let state = stayLoggedIn === 'true' ? 'stayIn' : 'noStay';
+        if (tuner === 'true') {
+            state += '_tuner';
+        }
         const url = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(OAUTH_REDIRECT_URI)}&response_type=code&scope=identify%20guilds&state=${state}`;
         res.redirect(url);
     });
@@ -141,7 +144,8 @@ export function startApiServer(discordClient) {
             // Pass JWT via URL param (cross-domain cookie workaround)
             // Also set cookie for same-domain cases (if requested)
             const { state } = req.query;
-            const isStay = state === 'stayIn';
+            const isStay = state && state.startsWith('stayIn');
+            const isTuner = state && state.endsWith('_tuner');
             const maxAge = isStay ? 30 * 24 * 60 * 60 * 1000 : undefined; // 30 days or session
 
             res.cookie('token', jwtToken, {
@@ -151,7 +155,11 @@ export function startApiServer(discordClient) {
                 maxAge: maxAge,
             });
 
-            res.redirect(`${FRONTEND_URL}?token=${jwtToken}`);
+            if (isTuner) {
+                res.redirect(`${FRONTEND_URL}?token=${jwtToken}&app=tuner`);
+            } else {
+                res.redirect(`${FRONTEND_URL}?token=${jwtToken}`);
+            }
 
         } catch (error) {
             console.error('OAuth Callback Error:', error.response?.data || error);
@@ -217,7 +225,7 @@ export function startApiServer(discordClient) {
         try {
             // Check and update user's current Discord roles
             const updatedUser = await checkUserRolesAndUpdateStatus(req.user.id);
-            
+
             if (!updatedUser) {
                 return res.status(404).json({ error: 'User not found in db' });
             }
@@ -654,6 +662,86 @@ export function startApiServer(discordClient) {
             res.json({ success: true });
         } catch (err) {
             res.status(500).json({ error: 'Failed to move card' });
+        }
+    });
+
+    // ─── TUNER EXAM ROUTES ───
+
+    // Request access to exam / get current status
+    app.get('/api/tuner-exam/status', authenticateToken, async (req, res) => {
+        try {
+            const [rows] = await pool.execute('SELECT status, score FROM tuner_exams WHERE user_id = ?', [req.user.id]);
+            if (rows.length === 0) {
+                // Not requested yet, automatically create a request when they first login as tuner
+                await pool.execute(
+                    'INSERT INTO tuner_exams (user_id, username, avatar, status) VALUES (?, ?, ?, ?)',
+                    [req.user.id, req.user.username, req.user.avatar, 'locked']
+                );
+                return res.json({ status: 'locked' });
+            }
+            res.json({ status: rows[0].status, score: rows[0].score });
+        } catch (err) {
+            console.error('Tuner exam status error:', err);
+            res.status(500).json({ error: 'DB Error' });
+        }
+    });
+
+    // Submit exam
+    app.post('/api/tuner-exam/submit', authenticateToken, async (req, res) => {
+        const { answers, ausbilder, score } = req.body;
+
+        try {
+            // Verify they are unlocked
+            const [rows] = await pool.execute('SELECT status FROM tuner_exams WHERE user_id = ?', [req.user.id]);
+            if (rows.length === 0 || rows[0].status !== 'unlocked') {
+                return res.status(403).json({ error: 'Not authorized or already submitted' });
+            }
+
+            const finalScore = score || 0;
+
+            await pool.execute(
+                'UPDATE tuner_exams SET status = ?, score = ?, answers = ?, ausbilder = ? WHERE user_id = ?',
+                ['submitted', finalScore, JSON.stringify(answers), ausbilder || '', req.user.id]
+            );
+
+            res.json({ success: true });
+        } catch (err) {
+            console.error('Tuner exam submit error:', err);
+            res.status(500).json({ error: 'DB Error' });
+        }
+    });
+
+    // ─── ADMIN TUNER EXAM ROUTES ───
+    app.get('/api/admin/tuner-exams', authenticateToken, async (req, res) => {
+        if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+        try {
+            const [rows] = await pool.execute('SELECT * FROM tuner_exams ORDER BY updated_at DESC');
+            res.json(rows);
+        } catch (err) {
+            console.error('Admin tuner exams error:', err);
+            res.status(500).json({ error: 'DB Error' });
+        }
+    });
+
+    app.post('/api/admin/tuner-exams/:id/unlock', authenticateToken, async (req, res) => {
+        if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+        try {
+            await pool.execute('UPDATE tuner_exams SET status = ? WHERE user_id = ?', ['unlocked', req.params.id]);
+            res.json({ success: true });
+        } catch (err) {
+            console.error('Admin unlock error:', err);
+            res.status(500).json({ error: 'DB Error' });
+        }
+    });
+
+    app.delete('/api/admin/tuner-exams/:id', authenticateToken, async (req, res) => {
+        if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+        try {
+            await pool.execute('DELETE FROM tuner_exams WHERE user_id = ?', [req.params.id]);
+            res.json({ success: true });
+        } catch (err) {
+            console.error('Admin delete exam error:', err);
+            res.status(500).json({ error: 'DB Error' });
         }
     });
 

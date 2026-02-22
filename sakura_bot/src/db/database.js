@@ -157,6 +157,20 @@ export async function initDatabase() {
       await connection.execute('ALTER TABLE board_cards MODIFY COLUMN image_url LONGTEXT');
     } catch (_) { /* table might not exist yet or column already correct */ }
 
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS tuner_exams (
+        user_id VARCHAR(64) PRIMARY KEY,
+        username VARCHAR(255) NOT NULL,
+        avatar VARCHAR(255),
+        ausbilder VARCHAR(255),
+        status ENUM('locked', 'unlocked', 'submitted') DEFAULT 'locked',
+        score INT DEFAULT 0,
+        answers JSON,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+    `);
+
     console.log('✅ Datenbank-Tabellen initialisiert');
     connection.release();
 

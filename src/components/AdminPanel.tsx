@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios';
-import { Tag, Users, LayoutGrid, Trash2, Edit2, Plus, Check, X, Shield, Clock, AlertCircle, UserX, Zap, Swords, Inbox, Ban } from 'lucide-react';
+import { Tag, Users, LayoutGrid, Trash2, Edit2, Plus, Check, X, Shield, Clock, AlertCircle, UserX, Zap, Swords, Inbox, Ban, FileText } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { TunerExamAdmin } from './TunerExamAdmin';
 import type { Tag as TagType, User, Role } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://sakura-bot-fkih.onrender.com/api';
 
-type AdminTab = 'tags' | 'users' | 'columns' | 'moderation' | 'anfragen';
+type AdminTab = 'tags' | 'users' | 'columns' | 'moderation' | 'anfragen' | 'tuner';
 
 const ROLE_OPTIONS: Role[] = ['admin', 'editor', 'viewer'];
 
@@ -238,6 +239,7 @@ export function AdminPanel() {
                     { key: 'anfragen', icon: <Inbox size={15} />, label: `Anfragen${pendingUsers.length > 0 ? ` (${pendingUsers.length})` : ''}` },
                     { key: 'columns', icon: <LayoutGrid size={15} />, label: 'Spalten' },
                     { key: 'moderation', icon: <Swords size={15} />, label: 'Moderation' },
+                    { key: 'tuner', icon: <FileText size={15} />, label: 'Tunerprüfung' },
                 ] as const).map(tab => (
                     <button
                         key={tab.key}
@@ -353,93 +355,93 @@ export function AdminPanel() {
                                 </div>
                             ) : (
                                 approvedUsers.map(user => {
-                                const isSelf = user.id === currentUser?.id;
-                                return (
-                                    <div key={user.id} className="user-row surface">
-                                        {user.avatar && user.avatar.length > 5 ? (
-                                            <img src={`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`} className="avatar avatar-lg" alt="" />
-                                        ) : (
-                                            <div className="avatar avatar-lg">{user.name.substring(0, 2).toUpperCase()}</div>
-                                        )}
-                                        <div className="user-info">
-                                            <p className="font-semibold">{user.name} {isSelf && <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>(du)</span>}</p>
-                                            <p className="text-xs text-muted">Discord ID: {user.id}</p>
-                                            {user.discordRoles && user.discordRoles.length > 0 && (
-                                                <div className="discord-roles-row">
-                                                    {user.discordRoles.slice(0, 5).map((roleId: string) => (
-                                                        <span key={roleId} className="discord-role-badge">{getDiscordRoleName(roleId)}</span>
-                                                    ))}
-                                                    {user.discordRoles.length > 5 && <span className="discord-role-badge">+{user.discordRoles.length - 5}</span>}
+                                    const isSelf = user.id === currentUser?.id;
+                                    return (
+                                        <div key={user.id} className="user-row surface">
+                                            {user.avatar && user.avatar.length > 5 ? (
+                                                <img src={`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`} className="avatar avatar-lg" alt="" />
+                                            ) : (
+                                                <div className="avatar avatar-lg">{user.name.substring(0, 2).toUpperCase()}</div>
+                                            )}
+                                            <div className="user-info">
+                                                <p className="font-semibold">{user.name} {isSelf && <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>(du)</span>}</p>
+                                                <p className="text-xs text-muted">Discord ID: {user.id}</p>
+                                                {user.discordRoles && user.discordRoles.length > 0 && (
+                                                    <div className="discord-roles-row">
+                                                        {user.discordRoles.slice(0, 5).map((roleId: string) => (
+                                                            <span key={roleId} className="discord-role-badge">{getDiscordRoleName(roleId)}</span>
+                                                        ))}
+                                                        {user.discordRoles.length > 5 && <span className="discord-role-badge">+{user.discordRoles.length - 5}</span>}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="role-selector">
+                                                {ROLE_OPTIONS.map(role => (
+                                                    <button
+                                                        key={role}
+                                                        disabled={isSelf}
+                                                        title={isSelf ? 'Du kannst deine eigene Rolle nicht ändern' : ''}
+                                                        className={`role-btn ${user.role === role ? 'selected' : ''} role-${role}`}
+                                                        style={isSelf ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
+                                                        onClick={() => handleUserRoleChange(user, role)}
+                                                    >
+                                                        {role}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            {!isSelf && user.role === 'editor' && (
+                                                <div className="permissions-row">
+                                                    <label className="perm-check">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={user.permissions?.canDeleteColumns !== false}
+                                                            onChange={async (e) => {
+                                                                try {
+                                                                    await axios.post(`${API_URL}/admin/users/${user.id}`, {
+                                                                        status: user.status || 'approved',
+                                                                        website_role: user.role,
+                                                                        can_delete_columns: e.target.checked,
+                                                                        can_delete_cards: user.permissions?.canDeleteCards !== false
+                                                                    });
+                                                                    if (fetchUsers) fetchUsers();
+                                                                } catch { showAlert('Fehler beim Speichern.'); }
+                                                            }}
+                                                        />
+                                                        Spalten löschen
+                                                    </label>
+                                                    <label className="perm-check">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={user.permissions?.canDeleteCards !== false}
+                                                            onChange={async (e) => {
+                                                                try {
+                                                                    await axios.post(`${API_URL}/admin/users/${user.id}`, {
+                                                                        status: user.status || 'approved',
+                                                                        website_role: user.role,
+                                                                        can_delete_columns: user.permissions?.canDeleteColumns !== false,
+                                                                        can_delete_cards: e.target.checked
+                                                                    });
+                                                                    if (fetchUsers) fetchUsers();
+                                                                } catch { showAlert('Fehler beim Speichern.'); }
+                                                            }}
+                                                        />
+                                                        Karten löschen
+                                                    </label>
                                                 </div>
                                             )}
-                                        </div>
-                                        <div className="role-selector">
-                                            {ROLE_OPTIONS.map(role => (
+                                            {!isSelf && (
                                                 <button
-                                                    key={role}
-                                                    disabled={isSelf}
-                                                    title={isSelf ? 'Du kannst deine eigene Rolle nicht ändern' : ''}
-                                                    className={`role-btn ${user.role === role ? 'selected' : ''} role-${role}`}
-                                                    style={isSelf ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
-                                                    onClick={() => handleUserRoleChange(user, role)}
+                                                    className="btn btn-danger btn-sm"
+                                                    onClick={() => handleRevokeUser(user)}
+                                                    title="Zugriff entziehen"
+                                                    style={{ marginLeft: 'auto', flexShrink: 0 }}
                                                 >
-                                                    {role}
+                                                    <Ban size={13} /> Entziehen
                                                 </button>
-                                            ))}
+                                            )}
                                         </div>
-                                        {!isSelf && user.role === 'editor' && (
-                                            <div className="permissions-row">
-                                                <label className="perm-check">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={user.permissions?.canDeleteColumns !== false}
-                                                        onChange={async (e) => {
-                                                            try {
-                                                                await axios.post(`${API_URL}/admin/users/${user.id}`, {
-                                                                    status: user.status || 'approved',
-                                                                    website_role: user.role,
-                                                                    can_delete_columns: e.target.checked,
-                                                                    can_delete_cards: user.permissions?.canDeleteCards !== false
-                                                                });
-                                                                if (fetchUsers) fetchUsers();
-                                                            } catch { showAlert('Fehler beim Speichern.'); }
-                                                        }}
-                                                    />
-                                                    Spalten löschen
-                                                </label>
-                                                <label className="perm-check">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={user.permissions?.canDeleteCards !== false}
-                                                        onChange={async (e) => {
-                                                            try {
-                                                                await axios.post(`${API_URL}/admin/users/${user.id}`, {
-                                                                    status: user.status || 'approved',
-                                                                    website_role: user.role,
-                                                                    can_delete_columns: user.permissions?.canDeleteColumns !== false,
-                                                                    can_delete_cards: e.target.checked
-                                                                });
-                                                                if (fetchUsers) fetchUsers();
-                                                            } catch { showAlert('Fehler beim Speichern.'); }
-                                                        }}
-                                                    />
-                                                    Karten löschen
-                                                </label>
-                                            </div>
-                                        )}
-                                        {!isSelf && (
-                                            <button
-                                                className="btn btn-danger btn-sm"
-                                                onClick={() => handleRevokeUser(user)}
-                                                title="Zugriff entziehen"
-                                                style={{ marginLeft: 'auto', flexShrink: 0 }}
-                                            >
-                                                <Ban size={13} /> Entziehen
-                                            </button>
-                                        )}
-                                    </div>
-                                );
-                            }))}
+                                    );
+                                }))}
                         </div>
                     </div>
                 )}
@@ -464,10 +466,10 @@ export function AdminPanel() {
                             </div>
                         ) : (
                             <>
-                                <div style={{ 
-                                    padding: '12px', 
-                                    borderRadius: '8px', 
-                                    background: 'rgba(255, 107, 157, 0.1)', 
+                                <div style={{
+                                    padding: '12px',
+                                    borderRadius: '8px',
+                                    background: 'rgba(255, 107, 157, 0.1)',
                                     border: '1px solid rgba(255, 107, 157, 0.3)',
                                     marginBottom: '16px',
                                     fontSize: '12px',
@@ -478,41 +480,41 @@ export function AdminPanel() {
                                 </div>
                                 <div className="users-list">
                                     {pendingUsers.map(user => (
-                                    <div key={user.id} className="user-row surface anfrage-row" style={{ borderColor: 'var(--sakura-400)' }}>
-                                        {user.avatar ? (
-                                            <img src={`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`} className="avatar avatar-lg" alt="" />
-                                        ) : (
-                                            <div className="avatar avatar-lg">{user.name.substring(0, 2).toUpperCase()}</div>
-                                        )}
-                                        <div className="user-info" style={{ flex: 1 }}>
-                                            <p className="font-semibold">{user.name}</p>
-                                            <p className="text-xs text-muted">Discord ID: {user.id}</p>
-                                            {user.discordRoles && user.discordRoles.length > 0 ? (
-                                                <div className="discord-roles-row" style={{ marginTop: '6px' }}>
-                                                    <span className="text-xs" style={{ color: 'var(--text-muted)', marginRight: '6px' }}>Discord-Rollen:</span>
-                                                    {user.discordRoles.map((roleId: string) => (
-                                                        <span key={roleId} className="discord-role-badge">{getDiscordRoleName(roleId)}</span>
-                                                    ))}
-                                                </div>
+                                        <div key={user.id} className="user-row surface anfrage-row" style={{ borderColor: 'var(--sakura-400)' }}>
+                                            {user.avatar ? (
+                                                <img src={`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`} className="avatar avatar-lg" alt="" />
                                             ) : (
-                                                <p className="text-xs" style={{ color: '#ff4757', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                    <UserX size={11} /> Nicht auf dem Sakura Discord / Keine Rollen
-                                                </p>
+                                                <div className="avatar avatar-lg">{user.name.substring(0, 2).toUpperCase()}</div>
                                             )}
+                                            <div className="user-info" style={{ flex: 1 }}>
+                                                <p className="font-semibold">{user.name}</p>
+                                                <p className="text-xs text-muted">Discord ID: {user.id}</p>
+                                                {user.discordRoles && user.discordRoles.length > 0 ? (
+                                                    <div className="discord-roles-row" style={{ marginTop: '6px' }}>
+                                                        <span className="text-xs" style={{ color: 'var(--text-muted)', marginRight: '6px' }}>Discord-Rollen:</span>
+                                                        {user.discordRoles.map((roleId: string) => (
+                                                            <span key={roleId} className="discord-role-badge">{getDiscordRoleName(roleId)}</span>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-xs" style={{ color: '#ff4757', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                        <UserX size={11} /> Nicht auf dem Sakura Discord / Keine Rollen
+                                                    </p>
+                                                )}
+                                            </div>
+                                            <div className="flex gap-2" style={{ flexShrink: 0 }}>
+                                                <button className="btn btn-sm btn-primary" onClick={() => handleApproveUser(user, 'editor')}>
+                                                    <Check size={13} /> Als Editor
+                                                </button>
+                                                <button className="btn btn-sm btn-secondary" onClick={() => handleApproveUser(user, 'viewer')}>
+                                                    Als Viewer
+                                                </button>
+                                                <button className="btn btn-sm btn-danger" onClick={() => handleRejectUser(user)}>
+                                                    <X size={13} /> Ablehnen
+                                                </button>
+                                            </div>
                                         </div>
-                                        <div className="flex gap-2" style={{ flexShrink: 0 }}>
-                                            <button className="btn btn-sm btn-primary" onClick={() => handleApproveUser(user, 'editor')}>
-                                                <Check size={13} /> Als Editor
-                                            </button>
-                                            <button className="btn btn-sm btn-secondary" onClick={() => handleApproveUser(user, 'viewer')}>
-                                                Als Viewer
-                                            </button>
-                                            <button className="btn btn-sm btn-danger" onClick={() => handleRejectUser(user)}>
-                                                <X size={13} /> Ablehnen
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
+                                    ))}
                                 </div>
                             </>
                         )}
@@ -650,6 +652,11 @@ export function AdminPanel() {
                             </div>
                         </div>
                     </div>
+                )}
+
+                {/* ── TUNER EXAM ── */}
+                {activeTab === 'tuner' && (
+                    <TunerExamAdmin />
                 )}
             </div>
         </div>

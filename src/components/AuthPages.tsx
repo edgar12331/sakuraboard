@@ -5,9 +5,9 @@ import { motion } from 'framer-motion';
 export function LoginPage() {
     const [stayLoggedIn, setStayLoggedIn] = useState(true);
 
-    const handleDiscordLogin = () => {
+    const handleDiscordLogin = (tuner = false) => {
         const baseUrl = 'https://sakura-bot-fkih.onrender.com/api/auth/discord';
-        window.location.href = `${baseUrl}?stayLoggedIn=${stayLoggedIn}`;
+        window.location.href = `${baseUrl}?stayLoggedIn=${stayLoggedIn}${tuner ? '&tuner=true' : ''}`;
     };
 
     return (
@@ -95,7 +95,7 @@ export function LoginPage() {
 
                 <motion.button
                     className="btn btn-discord btn-lg"
-                    onClick={handleDiscordLogin}
+                    onClick={() => handleDiscordLogin(false)}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     initial={{ y: 20, opacity: 0 }}
@@ -103,6 +103,19 @@ export function LoginPage() {
                     transition={{ delay: 0.6 }}
                 >
                     <LogIn size={18} /> Login with Discord
+                </motion.button>
+
+                <motion.button
+                    className="btn btn-secondary btn-lg w-full mt-3 justify-center text-sm"
+                    onClick={() => handleDiscordLogin(true)}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.7 }}
+                    style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', color: 'var(--text)' }}
+                >
+                    <LogIn size={16} className="mr-2" /> Tunerprüfung Anmeldung
                 </motion.button>
             </motion.div>
         </div>
@@ -125,10 +138,10 @@ export function PendingPage({ logout }: { logout: () => void }) {
                     Sobald du freigeschaltet wurdest, kannst du dich einfach neu anmelden.
                 </p>
 
-                <div style={{ 
-                    padding: '12px', 
-                    borderRadius: '8px', 
-                    background: 'rgba(112, 161, 255, 0.1)', 
+                <div style={{
+                    padding: '12px',
+                    borderRadius: '8px',
+                    background: 'rgba(112, 161, 255, 0.1)',
                     border: '1px solid rgba(112, 161, 255, 0.3)',
                     marginBottom: '16px',
                     fontSize: '12px',
