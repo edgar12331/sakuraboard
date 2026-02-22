@@ -598,15 +598,13 @@ export function TunerExam({ logout }: TunerExamProps) {
                                                     key={oIdx}
                                                     className={`exam-option-label ${isChecked ? 'selected' : ''}`}
                                                 >
-                                                    <div className="flex items-center h-5 mt-0.5">
-                                                        <input
-                                                            type={isRadio ? "radio" : "checkbox"}
-                                                            name={q.id}
-                                                            checked={isChecked}
-                                                            onChange={(e) => handleAnswerChange(q.id, opt.text, q.type, e.target.checked)}
-                                                            className={`exam-radio-check ${isRadio ? 'is-radio' : ''}`}
-                                                        />
-                                                    </div>
+                                                    <input
+                                                        type={isRadio ? "radio" : "checkbox"}
+                                                        name={q.id}
+                                                        checked={isChecked}
+                                                        onChange={(e) => handleAnswerChange(q.id, opt.text, q.type, e.target.checked)}
+                                                        className={`exam-radio-check ${isRadio ? 'is-radio' : ''}`}
+                                                    />
                                                     <div className="exam-option-text">
                                                         {opt.text}
                                                     </div>
