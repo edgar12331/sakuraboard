@@ -86,18 +86,23 @@ export function TunerExamAdmin() {
                     </h3>
                     {viewExam.answers && Object.keys(viewExam.answers).length > 0 ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                            {Object.entries(viewExam.answers).map(([qId, ansArray]) => (
-                                <div key={qId} className="tuner-exam-answers-box">
-                                    <div className="tuner-exam-answer-label">Frage {qId.replace('q', '')}</div>
-                                    <div className="tuner-exam-answer-tags">
-                                        {(ansArray as string[]).map((ans, i) => (
-                                            <span key={i} className="tuner-exam-answer-tag">
-                                                {ans}
-                                            </span>
-                                        ))}
+                            {Object.entries(viewExam.answers).map(([qId, ansArray]) => {
+                                const isArray = Array.isArray(ansArray);
+                                const currentAnswers = isArray ? (ansArray as unknown as string[]) : [String(ansArray)];
+
+                                return (
+                                    <div key={qId} className="tuner-exam-answers-box">
+                                        <div className="tuner-exam-answer-label">Frage {qId.replace('q', '')}</div>
+                                        <div className="tuner-exam-answer-tags">
+                                            {currentAnswers.map((ans, i) => (
+                                                <span key={i} className="tuner-exam-answer-tag">
+                                                    {ans}
+                                                </span>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     ) : (
                         <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Keine Antworten gespeichert oder leere Abgabe.</p>
@@ -193,7 +198,13 @@ export function TunerExamAdmin() {
                                             )}
                                             {exam.status === 'submitted' && (
                                                 <button
-                                                    onClick={() => setViewExam(exam)}
+                                                    onClick={() => {
+                                                        let parsedAnswers = exam.answers;
+                                                        if (typeof parsedAnswers === 'string') {
+                                                            try { parsedAnswers = JSON.parse(parsedAnswers); } catch (e) { parsedAnswers = {}; }
+                                                        }
+                                                        setViewExam({ ...exam, answers: parsedAnswers });
+                                                    }}
                                                     className="btn btn-secondary btn-sm tuner-btn-success"
                                                     title="Antworten ansehen"
                                                 >
