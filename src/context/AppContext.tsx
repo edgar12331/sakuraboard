@@ -5,6 +5,7 @@ import type { AppState, Card, Column, Tag, User } from '../types';
 const API_URL = import.meta.env.VITE_API_URL || 'https://sakura-bot-fkih.onrender.com/api';
 
 const BOARD_CACHE_KEY = 'sakura_board_cache_v1';
+const PENDING_CACHE_KEY = 'sakura_board_pending_v1';
 
 // Token helpers (localStorage)
 const getToken = () => localStorage.getItem('sakura_token');
@@ -71,6 +72,44 @@ function saveBoardCache(tags: Tag[], columns: Column[], cards: Card[]) {
 function clearBoardCache() {
     try {
         localStorage.removeItem(BOARD_CACHE_KEY);
+    } catch {
+        // ignore cache clear errors
+    }
+}
+
+function loadPendingCache(): PendingState {
+    try {
+        const raw = localStorage.getItem(PENDING_CACHE_KEY);
+        if (!raw) return { cards: new Map(), columns: new Map(), tags: new Map() };
+        const parsed = JSON.parse(raw);
+        return {
+            cards: new Map(parsed?.cards ?? []),
+            columns: new Map(parsed?.columns ?? []),
+            tags: new Map(parsed?.tags ?? []),
+        };
+    } catch {
+        return { cards: new Map(), columns: new Map(), tags: new Map() };
+    }
+}
+
+function savePendingCache(pending: PendingState) {
+    try {
+        localStorage.setItem(
+            PENDING_CACHE_KEY,
+            JSON.stringify({
+                cards: Array.from(pending.cards.entries()),
+                columns: Array.from(pending.columns.entries()),
+                tags: Array.from(pending.tags.entries()),
+            })
+        );
+    } catch {
+        // ignore cache write errors
+    }
+}
+
+function clearPendingCache() {
+    try {
+        localStorage.removeItem(PENDING_CACHE_KEY);
     } catch {
         // ignore cache clear errors
     }
@@ -250,11 +289,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const isAuthenticatedRef = useRef(false);
     // Cooldown: pause polling for 15s after any local action
     const lastLocalActionRef = useRef(0);
-    const pendingRef = useRef<PendingState>({
-        cards: new Map(),
-        columns: new Map(),
-        tags: new Map(),
-    });
+    const pendingRef = useRef<PendingState>(loadPendingCache());
     const stateRef = useRef(state);
 
     useEffect(() => {
@@ -334,6 +369,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             pending.tags.set(action.tag.id, 'upsert');
         }
 
+        savePendingCache(pending);
         rawDispatch(action);
         if (action.type !== 'SET_BOARD') {
             // Pause polling while we sync
@@ -370,6 +406,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
                         pending.tags.delete(action.tagId);
                         action.affectedCardIds?.forEach(id => pending.cards.delete(id));
                     }
+
+                    savePendingCache(pending);
                 })
                 .catch(err => {
                     notify('Sync fehlgeschlagen. Bitte erneut versuchen.', 'error');
@@ -475,6 +513,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             isAuthenticatedRef.current = false;
             clearToken();
             clearBoardCache();
+            clearPendingCache();
             setCurrentUser(null);
             window.location.href = '/';
         }
