@@ -22,7 +22,7 @@ interface Question {
     image?: string;
 }
 
-const EXAM_QUESTIONS: Question[] = [
+export const EXAM_QUESTIONS: Question[] = [
     {
         id: 'q1',
         section: 'Grundkompetenz',

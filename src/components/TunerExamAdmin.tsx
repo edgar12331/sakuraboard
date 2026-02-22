@@ -3,6 +3,7 @@ import axios from 'axios';
 import { RefreshCw, Unlock, Eye, Trash2, CheckCircle, Lock, AlertCircle, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { EXAM_QUESTIONS } from './TunerExam';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://sakura-bot-fkih.onrender.com/api';
 
@@ -84,29 +85,31 @@ export function TunerExamAdmin() {
                     <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px', paddingBottom: '8px', borderBottom: '1px solid var(--border)' }}>
                         Gegebene Antworten
                     </h3>
-                    {viewExam.answers && Object.keys(viewExam.answers).length > 0 ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                            {Object.entries(viewExam.answers).map(([qId, ansArray]) => {
-                                const isArray = Array.isArray(ansArray);
-                                const currentAnswers = isArray ? (ansArray as unknown as string[]) : [String(ansArray)];
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        {EXAM_QUESTIONS.map((q, idx) => {
+                            const ansArray = viewExam.answers ? viewExam.answers[q.id] : null;
+                            const isArray = Array.isArray(ansArray);
+                            const currentAnswers = ansArray ? (isArray ? (ansArray as unknown as string[]) : [String(ansArray)]) : [];
 
-                                return (
-                                    <div key={qId} className="tuner-exam-answers-box">
-                                        <div className="tuner-exam-answer-label">Frage {qId.replace('q', '')}</div>
-                                        <div className="tuner-exam-answer-tags">
-                                            {currentAnswers.map((ans, i) => (
-                                                <span key={i} className="tuner-exam-answer-tag">
-                                                    {ans}
-                                                </span>
-                                            ))}
-                                        </div>
+                            return (
+                                <div key={q.id} className="tuner-exam-answers-box" style={{ padding: '12px', background: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                                    <div className="tuner-exam-answer-label" style={{ fontWeight: '600', marginBottom: '8px', color: 'var(--text-primary)' }}>
+                                        {idx + 1}. {q.text}
+                                        <span style={{ fontSize: '11px', fontWeight: 'normal', color: 'var(--text-muted)', marginLeft: '8px' }}>({q.points} Pkt)</span>
                                     </div>
-                                );
-                            })}
-                        </div>
-                    ) : (
-                        <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Keine Antworten gespeichert oder leere Abgabe.</p>
-                    )}
+                                    <div className="tuner-exam-answer-tags" style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                        {currentAnswers.length > 0 ? currentAnswers.map((ans, i) => (
+                                            <span key={i} className="tuner-exam-answer-tag" style={{ background: 'var(--bg-elevated)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', border: '1px solid var(--border)' }}>
+                                                {ans}
+                                            </span>
+                                        )) : (
+                                            <span style={{ color: '#ff4757', fontSize: '12px', fontStyle: 'italic' }}>Keine Antwort gegeben</span>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
         );
