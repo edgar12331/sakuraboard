@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { LogOut, CheckCircle, Lock, AlertTriangle, ArrowRight, Save } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { LogOut, CheckCircle, Lock, AlertTriangle, Save } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://sakura-bot-fkih.onrender.com/api';
 
@@ -366,7 +366,6 @@ interface TunerExamProps {
 
 export function TunerExam({ logout }: TunerExamProps) {
     const [status, setStatus] = useState<'loading' | 'locked' | 'unlocked' | 'submitted'>('loading');
-    const [score, setScore] = useState<number | null>(null);
     const [answers, setAnswers] = useState<Record<string, string[]>>({});
     const [ausbilderName, setAusbilderName] = useState('');
     const [charName, setCharName] = useState('');
@@ -378,9 +377,6 @@ export function TunerExam({ logout }: TunerExamProps) {
             try {
                 const res = await axios.get(`${API_URL}/tuner-exam/status`);
                 setStatus(res.data.status);
-                if (res.data.score !== undefined) {
-                    setScore(res.data.score);
-                }
             } catch (err) {
                 console.error('Failed to fetch tuner exam status', err);
                 setErrorMsg('Fehler beim Laden des Prüfungsstatus.');
@@ -572,7 +568,7 @@ export function TunerExam({ logout }: TunerExamProps) {
                             )}
 
                             <div className="space-y-8">
-                                {EXAM_QUESTIONS.filter(q => q.section === section).map((q, qIdx) => (
+                                {EXAM_QUESTIONS.filter(q => q.section === section).map((q) => (
                                     <motion.div
                                         key={q.id}
                                         initial={{ opacity: 0, y: 20 }}
@@ -604,8 +600,8 @@ export function TunerExam({ logout }: TunerExamProps) {
                                                     <label
                                                         key={oIdx}
                                                         className={`flex items-start p-3 rounded-lg border cursor-pointer transition-all duration-200 ${isChecked
-                                                                ? 'bg-sakura-500/10 border-sakura-500/50'
-                                                                : 'bg-zinc-950 border-zinc-800 hover:border-zinc-600'
+                                                            ? 'bg-sakura-500/10 border-sakura-500/50'
+                                                            : 'bg-zinc-950 border-zinc-800 hover:border-zinc-600'
                                                             }`}
                                                     >
                                                         <div className="flex items-center h-5 mt-0.5">
