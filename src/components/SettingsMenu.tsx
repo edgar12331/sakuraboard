@@ -127,7 +127,16 @@ export function SettingsMenu({ bg, onChangeBg }: SettingsMenuProps) {
                                     onClick={() => onChangeBg(preset.value)}
                                 >
                                     {preset.preview ? (
-                                        <img src={preset.preview} alt={preset.label} className="bg-preset-thumb" />
+                                        <img 
+                                            src={preset.preview} 
+                                            alt={preset.label} 
+                                            className="bg-preset-thumb"
+                                            loading="eager"
+                                            onError={(e) => {
+                                                console.error(`Failed to load image: ${preset.preview}`);
+                                                e.currentTarget.style.display = 'none';
+                                            }}
+                                        />
                                     ) : (
                                         <div className="bg-preset-thumb bg-preset-none">
                                             <X size={16} />
