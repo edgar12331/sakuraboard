@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { DragDropContext } from '@hello-pangea/dnd';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import type { DropResult } from '@hello-pangea/dnd';
 import { Plus, Search } from 'lucide-react';
 import { useApp } from '../context/AppContext';
@@ -17,10 +17,20 @@ export function Board() {
     const [searchQuery, setSearchQuery] = useState('');
 
     const onDragEnd = (result: DropResult) => {
-        const { destination, source, draggableId } = result;
+        const { destination, source, draggableId, type } = result;
         if (!destination) return;
         if (destination.droppableId === source.droppableId && destination.index === source.index) return;
 
+        // Column reordering
+        if (type === 'column') {
+            const newColumnIds = state.columns.map(c => c.id);
+            const [removed] = newColumnIds.splice(source.index, 1);
+            newColumnIds.splice(destination.index, 0, removed);
+            dispatch({ type: 'REORDER_COLUMNS', columnIds: newColumnIds });
+            return;
+        }
+
+        // Card movement
         dispatch({
             type: 'MOVE_CARD',
             cardId: draggableId,
@@ -76,42 +86,61 @@ export function Board() {
             </div>
 
             <DragDropContext onDragEnd={onDragEnd}>
-                <div className="board-columns">
-                    {state.columns.map(col => (
-                        <BoardColumn
-                            key={col.id}
-                            column={col}
-                            onEditCard={setEditingCard}
-                            onAddCard={() => setAddingCard({ columnId: col.id })}
-                            filterCardIds={filteredCardIds}
-                        />
-                    ))}
+                <Droppable droppableId="board" type="column" direction="horizontal">
+                    {(provided) => (
+                        <div
+                            className="board-columns"
+                            ref={provided.innerRef}
+                            {...provided.droppableProps}
+                        >
+                            {state.columns.map((col, index) => (
+                                <Draggable key={col.id} draggableId={`col-${col.id}`} index={index}>
+                                    {(dragProvided, dragSnapshot) => (
+                                        <div
+                                            ref={dragProvided.innerRef}
+                                            {...dragProvided.draggableProps}
+                                            className={`column-drag-wrapper ${dragSnapshot.isDragging ? 'column-dragging' : ''}`}
+                                        >
+                                            <BoardColumn
+                                                column={col}
+                                                onEditCard={setEditingCard}
+                                                onAddCard={() => setAddingCard({ columnId: col.id })}
+                                                filterCardIds={filteredCardIds}
+                                                dragHandleProps={dragProvided.dragHandleProps}
+                                            />
+                                        </div>
+                                    )}
+                                </Draggable>
+                            ))}
+                            {provided.placeholder}
 
-                    {isAdmin() && (
-                        <div className="new-column-wrapper">
-                            {showNewCol ? (
-                                <div className="new-column-form surface">
-                                    <input
-                                        className="input"
-                                        placeholder="Spaltenname…"
-                                        value={newColTitle}
-                                        onChange={e => setNewColTitle(e.target.value)}
-                                        onKeyDown={e => e.key === 'Enter' && handleAddColumn()}
-                                        autoFocus
-                                    />
-                                    <div className="flex gap-2 mt-2">
-                                        <button className="btn btn-primary btn-sm" onClick={handleAddColumn}>Hinzufügen</button>
-                                        <button className="btn btn-secondary btn-sm" onClick={() => setShowNewCol(false)}>Abbrechen</button>
-                                    </div>
+                            {isAdmin() && (
+                                <div className="new-column-wrapper">
+                                    {showNewCol ? (
+                                        <div className="new-column-form surface">
+                                            <input
+                                                className="input"
+                                                placeholder="Spaltenname…"
+                                                value={newColTitle}
+                                                onChange={e => setNewColTitle(e.target.value)}
+                                                onKeyDown={e => e.key === 'Enter' && handleAddColumn()}
+                                                autoFocus
+                                            />
+                                            <div className="flex gap-2 mt-2">
+                                                <button className="btn btn-primary btn-sm" onClick={handleAddColumn}>Hinzufügen</button>
+                                                <button className="btn btn-secondary btn-sm" onClick={() => setShowNewCol(false)}>Abbrechen</button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <button className="btn-add-column" onClick={() => setShowNewCol(true)}>
+                                            <Plus size={16} /> Spalte hinzufügen
+                                        </button>
+                                    )}
                                 </div>
-                            ) : (
-                                <button className="btn-add-column" onClick={() => setShowNewCol(true)}>
-                                    <Plus size={16} /> Spalte hinzufügen
-                                </button>
                             )}
                         </div>
                     )}
-                </div>
+                </Droppable>
             </DragDropContext>
 
             {(editingCard || addingCard) && (

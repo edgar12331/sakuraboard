@@ -11,9 +11,10 @@ interface BoardColumnProps {
     onEditCard: (card: Card) => void;
     onAddCard: () => void;
     filterCardIds?: Set<string>;
+    dragHandleProps?: any;
 }
 
-export function BoardColumn({ column, onEditCard, onAddCard, filterCardIds }: BoardColumnProps) {
+export function BoardColumn({ column, onEditCard, onAddCard, filterCardIds, dragHandleProps }: BoardColumnProps) {
     const { state, dispatch, canView, canDeleteColumn } = useApp();
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -32,7 +33,7 @@ export function BoardColumn({ column, onEditCard, onAddCard, filterCardIds }: Bo
 
     return (
         <div className="board-column">
-            <div className="column-header">
+            <div className="column-header" {...dragHandleProps}>
                 <div className="column-header-left">
                     <div className="column-color-dot" style={{ background: column.color }} />
                     <span className="column-title">{column.title}</span>

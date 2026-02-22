@@ -340,20 +340,25 @@ body {
 
 @keyframes petal-fall {
   0% {
-    transform: translateY(-20px) rotate(0deg);
+    transform: translateY(-10vh) translateX(0) rotate(0deg);
     opacity: 0;
   }
 
-  10% {
-    opacity: 1;
+  5% {
+    opacity: 0.7;
   }
 
-  90% {
-    opacity: 1;
+  50% {
+    transform: translateY(50vh) translateX(var(--petal-drift, 20px)) rotate(360deg);
+    opacity: 0.6;
+  }
+
+  95% {
+    opacity: 0.5;
   }
 
   100% {
-    transform: translateY(100vh) rotate(720deg);
+    transform: translateY(110vh) translateX(calc(var(--petal-drift, 20px) * -0.5)) rotate(720deg);
     opacity: 0;
   }
 }
@@ -361,6 +366,7 @@ body {
 /* ─── Petals ─── */
 .petal {
   position: fixed;
+  top: 0;
   pointer-events: none;
   z-index: 9999;
   width: 10px;
@@ -368,6 +374,7 @@ body {
   background: radial-gradient(circle, #ffb3d1 0%, #ff6b9d 60%, transparent 100%);
   border-radius: 50% 50% 50% 0;
   animation: petal-fall linear infinite;
+  will-change: transform, opacity;
 }
 
 /* ─── Utilities ─── */
@@ -647,4 +654,70 @@ body {
 .anfrage-row {
   flex-wrap: wrap;
   gap: 12px;
+}
+
+/* ─── Settings / Background Presets ─── */
+.bg-presets {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.bg-preset-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  background: var(--bg-base);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition);
+  font-family: 'Inter', sans-serif;
+}
+
+.bg-preset-btn:hover {
+  border-color: var(--border-hover);
+}
+
+.bg-preset-btn.active {
+  border-color: var(--sakura-400);
+  box-shadow: 0 0 12px rgba(255, 107, 157, 0.2);
+}
+
+.bg-preset-thumb {
+  width: 100%;
+  height: 56px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+}
+
+.bg-preset-none {
+  background: var(--bg-elevated);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.bg-preset-upload {
+  background: rgba(255, 107, 157, 0.1);
+  border: 1px dashed var(--sakura-400);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--sakura-400);
+}
+
+.bg-preset-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.settings-modal .modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }

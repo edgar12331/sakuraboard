@@ -5,9 +5,10 @@ import { useApp } from '../context/AppContext';
 interface NavbarProps {
     currentView: 'board' | 'admin';
     onViewChange: (v: 'board' | 'admin') => void;
+    children?: React.ReactNode;
 }
 
-export function Navbar({ currentView, onViewChange }: NavbarProps) {
+export function Navbar({ currentView, onViewChange, children }: NavbarProps) {
     const { state, isAdmin, logout } = useApp();
     const user = state.currentUser;
     const [menuOpen, setMenuOpen] = useState(false);
@@ -61,6 +62,7 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
             </div>
 
             <div className="navbar-right">
+                {children}
                 <div className="user-menu-wrapper" ref={menuRef}>
                     <button className="user-menu-trigger" onClick={() => setMenuOpen(v => !v)}>
                         {avatarUrl ? (

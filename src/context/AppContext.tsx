@@ -29,6 +29,7 @@ type Action =
     | { type: 'ADD_COLUMN'; column: Column }
     | { type: 'UPDATE_COLUMN'; column: Column }
     | { type: 'DELETE_COLUMN'; columnId: string; affectedCardIds?: string[] }
+    | { type: 'REORDER_COLUMNS'; columnIds: string[] }
     | { type: 'ADD_TAG'; tag: Tag }
     | { type: 'UPDATE_TAG'; tag: Tag }
     | { type: 'DELETE_TAG'; tagId: string; affectedCardIds?: string[] }
@@ -219,6 +220,12 @@ function reducer(state: AppState, action: Action): AppState {
                 tags: state.tags.filter(t => t.id !== action.tagId),
                 cards: state.cards.map(c => ({ ...c, tagIds: c.tagIds.filter(id => id !== action.tagId) })),
             };
+        case 'REORDER_COLUMNS': {
+            const orderedColumns = action.columnIds
+                .map(id => state.columns.find(c => c.id === id))
+                .filter((c): c is Column => !!c);
+            return { ...state, columns: orderedColumns };
+        }
         default:
             return state;
     }
@@ -269,6 +276,8 @@ function syncToApi(action: Action): Promise<void> {
             return axios.put(`${API_URL}/board/columns/${action.column.id}`, action.column).then(() => { });
         case 'DELETE_COLUMN':
             return axios.delete(`${API_URL}/board/columns/${action.columnId}`).then(() => { });
+        case 'REORDER_COLUMNS':
+            return axios.put(`${API_URL}/board/columns/reorder`, { columnIds: action.columnIds }).then(() => { });
         case 'ADD_TAG':
             return axios.post(`${API_URL}/board/tags`, action.tag).then(() => { });
         case 'UPDATE_TAG':

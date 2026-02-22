@@ -6,11 +6,13 @@ import { AdminPanel } from './components/AdminPanel';
 import { Petals } from './components/Petals';
 import { LoginPage, PendingPage, ErrorPage } from './components/AuthPages';
 import { ToastStack } from './components/ToastStack';
+import { SettingsMenu, useBackground } from './components/SettingsMenu';
 import './index.css';
 import './App.css';
 
 function AppInner() {
   const { state, logout, toasts, dismissToast } = useApp();
+  const { bg, changeBg } = useBackground();
   const [currentView, setCurrentView] = useState<'board' | 'admin'>('board');
   const searchParams = new URLSearchParams(window.location.search);
   const authError = searchParams.get('error');
@@ -54,8 +56,13 @@ function AppInner() {
 
   return (
     <div className="app">
+      {bg && (
+        <div className="app-bg-layer" style={{ backgroundImage: `url(${bg})` }} />
+      )}
       <Petals />
-      <Navbar currentView={currentView} onViewChange={setCurrentView} />
+      <Navbar currentView={currentView} onViewChange={setCurrentView}>
+        <SettingsMenu bg={bg} onChangeBg={changeBg} />
+      </Navbar>
       <main className="app-main">
         {currentView === 'board' ? <Board /> : <AdminPanel />}
       </main>

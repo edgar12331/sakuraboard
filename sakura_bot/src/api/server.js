@@ -492,6 +492,20 @@ export function startApiServer(discordClient) {
         }
     });
 
+    // Reorder columns
+    app.put('/api/board/columns/reorder', authenticateToken, async (req, res) => {
+        const { columnIds } = req.body;
+        if (!Array.isArray(columnIds)) return res.status(400).json({ error: 'columnIds required' });
+        try {
+            for (let i = 0; i < columnIds.length; i++) {
+                await pool.execute('UPDATE board_columns SET sort_order = ? WHERE id = ?', [i, columnIds[i]]);
+            }
+            res.json({ success: true });
+        } catch (err) {
+            res.status(500).json({ error: 'Failed to reorder columns' });
+        }
+    });
+
     // ── Cards CRUD ──
     function formatDateForMySQL(isoString) {
         if (!isoString) return null;

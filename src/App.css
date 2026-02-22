@@ -14,6 +14,17 @@
   z-index: 0;
 }
 
+.app-bg-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0.35;
+  pointer-events: none;
+}
+
 .app-main {
   flex: 1;
   display: flex;
@@ -261,6 +272,7 @@
     opacity: 0;
     transform: translateY(8px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -305,6 +317,20 @@
   flex-direction: column;
   max-height: calc(100vh - 130px);
   flex-shrink: 0;
+}
+
+.column-drag-wrapper {
+  flex-shrink: 0;
+}
+
+.column-drag-wrapper.column-dragging .board-column {
+  box-shadow: 0 8px 32px rgba(255, 107, 157, 0.25), var(--shadow-md);
+  border-color: var(--sakura-400);
+  transform: rotate(1.5deg);
+}
+
+.column-header {
+  cursor: grab;
 }
 
 .column-header {
